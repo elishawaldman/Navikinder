@@ -65,55 +65,29 @@ export const usePushNotifications = () => {
     }
   };
 
-  // Test notification function for iOS debugging - sends REAL push notification
+  // Test notification function for iOS debugging
   const testNotification = useCallback(async () => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "User not logged in",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
-      console.log('🧪 Sending real push notification test...');
+      const registration = await navigator.serviceWorker.ready;
       
-      // Call the Supabase Edge Function to send a real push notification
-      const { data, error } = await supabase.functions.invoke('send-push-notification', {
-        body: {
-          dose_instance_id: "test-" + Date.now(),
-          due_datetime: new Date().toISOString(),
-          dose_amount: 1,
-          dose_unit: "tablet",
-          medication_name: "🧪 Test Medication",
-          child_name: "Test User",
-          parent_email: user.email!, // Edge Function expects parent_email, not user_id
-          parent_name: user.user_metadata?.display_name || "Test Parent"
-        }
-      });
-
-      if (error) {
-        console.error('❌ Push notification error:', error);
-        throw error;
+      // Send message to service worker to trigger test notification
+      if (registration.active) {
+        registration.active.postMessage({ type: 'TEST_NOTIFICATION' });
+        
+        toast({
+          title: "Test Sent",
+          description: "Check if notification appears on your device"
+        });
       }
-
-      console.log('✅ Push notification sent successfully:', data);
-      
-      toast({
-        title: "Test Sent! 🚀",
-        description: "Real push notification sent - check your device in a few seconds"
-      });
-
-    } catch (error: any) {
-      console.error('❌ Test notification error:', error);
+    } catch (error) {
+      console.error('Test notification error:', error);
       toast({
         title: "Test Failed",
-        description: error.message || "Could not send test notification",
+        description: "Could not send test notification",
         variant: "destructive"
       });
     }
-  }, [user, toast]);
+  }, [toast]);
 
   const requestPermission = async () => {
     if (!isSupported) {

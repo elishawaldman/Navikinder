@@ -81,14 +81,38 @@ self.addEventListener('message', (event) => {
         body: 'This is a test notification from your app',
         icon: '/navikinder-logo-256.png',
         badge: '/navikinder-logo-256.png',
-        tag: 'test-notification',
+        tag: 'test-notification-' + Date.now(),
         requireInteraction: false,
         silent: false,
+        renotify: true,
         vibrate: [200, 100, 200]
       }).then(() => {
         sendLogToApp('success', '✅ Test notification displayed');
       }).catch((error) => {
         sendLogToApp('error', '❌ Test notification failed', error.message);
+      })
+    );
+  } else if (event.data && event.data.type === 'SIMULATE_PUSH') {
+    // Simulate a push event locally
+    const pushData = event.data.pushData || {
+      title: 'Simulated Push',
+      body: 'This is a simulated push notification'
+    };
+    
+    event.waitUntil(
+      self.registration.showNotification(pushData.title, {
+        body: pushData.body,
+        icon: '/navikinder-logo-256.png',
+        badge: '/navikinder-logo-256.png',
+        data: pushData.data || {},
+        tag: 'simulate-' + Date.now(),
+        requireInteraction: false,
+        renotify: true,
+        vibrate: [200, 100, 200]
+      }).then(() => {
+        sendLogToApp('success', '✅ Simulated push notification displayed');
+      }).catch((error) => {
+        sendLogToApp('error', '❌ Simulated push failed', error.message);
       })
     );
   }
