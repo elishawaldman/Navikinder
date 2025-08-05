@@ -1,9 +1,9 @@
-// Service Worker for PWA and Push Notifications
-const CACHE_NAME = 'medication-tracker-v4'; // Bumped for function ordering fix
+// Service Worker for PWA and Push Notifications - iOS Fixed Version
+const CACHE_NAME = 'medication-tracker-v5'; // Bumped for iOS fixes
 
 console.log('🚀 Service Worker script loaded');
 
-// Helper function to send logs to main app - MUST BE DEFINED FIRST
+// Helper function to send logs to main app
 const sendLogToApp = async (logType, message, data = null) => {
   try {
     const clients = await self.clients.matchAll({ includeUncontrolled: true });
@@ -26,27 +26,21 @@ const sendLogToApp = async (logType, message, data = null) => {
       }
     });
     
-    // Also log to console for development
     console.log(`[SW] ${message}`, data || '');
   } catch (error) {
     console.error('[SW] Failed to send log to app:', error);
   }
 };
 
-// Send initial log to indicate service worker is active
-const sendInitialLog = async () => {
-  console.log('📡 Service Worker attempting to send initial log');
-  await sendLogToApp('info', '🚀 Service Worker is active and ready');
-};
 const urlsToCache = [
   '/',
   '/manifest.json',
-  '/navikinder-logo-256.png' // Include notification icon in cache
+  '/navikinder-logo-256.png'
 ];
 
-// Install event - cache resources
+// Install event
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // Activate immediately
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
@@ -56,169 +50,161 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event - take control immediately
+// Activate event
 self.addEventListener('activate', (event) => {
   console.log('🔄 Service Worker activated');
-  self.clients.claim(); // Take control of all pages immediately
-  
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-      console.log('🧹 Cache cleanup complete');
-      // Send initial log after activation
-      setTimeout(sendInitialLog, 1000); // Delay to ensure clients are ready
+    self.clients.claim().then(() => {
+      return caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      });
     })
   );
 });
 
-// Listen for messages from main app
+// Message handler
 self.addEventListener('message', (event) => {
   console.log('📨 Service Worker received message:', event.data);
   
   if (event.data && event.data.type === 'TEST_CONNECTION') {
     sendLogToApp('success', '✅ Service Worker connection verified');
-  } else if (event.data && event.data.type === 'TEST_LOG') {
-    sendLogToApp('success', '🧪 Service Worker test message received');
-    sendLogToApp('info', '📊 Service Worker is functioning correctly');
+  } else if (event.data && event.data.type === 'TEST_NOTIFICATION') {
+    // Test notification from main app
+    event.waitUntil(
+      self.registration.showNotification('Test Notification', {
+        body: 'This is a test notification from your app',
+        icon: '/navikinder-logo-256.png',
+        badge: '/navikinder-logo-256.png',
+        tag: 'test-notification',
+        requireInteraction: false,
+        silent: false,
+        vibrate: [200, 100, 200]
+      }).then(() => {
+        sendLogToApp('success', '✅ Test notification displayed');
+      }).catch((error) => {
+        sendLogToApp('error', '❌ Test notification failed', error.message);
+      })
+    );
   }
 });
 
-// Fetch event - serve from cache when offline
+// Fetch event
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
-      .then((response) => {
-        if (response) {
-          return response; // Return cached version
-        }
-        // Fetch from network
-        return fetch(event.request).catch((error) => {
-          console.error('Network fetch failed:', error);
-          throw error;
-        });
-      })
-      .catch((error) => {
-        console.error('Cache lookup failed:', error);
-        return fetch(event.request);
-      })
+      .then((response) => response || fetch(event.request))
+      .catch(() => fetch(event.request))
   );
 });
 
-// sendLogToApp is now defined at the top of the file
-
-// Push event - iOS PWA compatible with flat payload structure
+// CRITICAL iOS FIX: Push event handler
 self.addEventListener('push', (event) => {
-  // AGGRESSIVE logging - multiple methods to confirm push events are received
-  console.log('🚨 PUSH EVENT FIRED - THIS SHOULD APPEAR IN LOGS');
-  console.log('🚨 Event data exists:', !!event.data);
-  console.log('🚨 Notification permission:', Notification.permission);
+  console.log('🔔 Push event received');
   
-  sendLogToApp('success', '🚨 CRITICAL: Push event fired on service worker!');
-  sendLogToApp('info', '🔔 Push notification received');
-  sendLogToApp('info', `🔒 Permission: ${Notification.permission}`);
-  
-  // CRITICAL: Wrap ALL push event code with event.waitUntil()
-  event.waitUntil(
-    (async () => {
+  const showNotificationPromise = (async () => {
+    try {
       let data = {};
       
+      // Parse push data
       if (event.data) {
         try {
           data = event.data.json();
-          sendLogToApp('success', '📦 Successfully parsed push data', data);
+          console.log('📦 Push data parsed:', data);
         } catch (e) {
-          sendLogToApp('error', '❌ Failed to parse JSON', e.message);
-          try {
-            // Fallback for simple text pushes
-            data = { body: event.data.text() };
-            sendLogToApp('warning', '⚠️ Using text fallback');
-          } catch (textError) {
-            sendLogToApp('error', '❌ Failed to parse text', textError.message);
-            data = {};
-          }
+          console.error('Failed to parse push data:', e);
+          data = { 
+            title: 'Medication Reminder',
+            body: event.data.text() || 'Time for medication'
+          };
         }
-      } else {
-        sendLogToApp('warning', '⚠️ No data in push event');
       }
       
-      // Use flat structure - no nested notification object
       const title = data.title || 'Medication Reminder';
+      
+      // iOS-optimized notification options
       const options = {
         body: data.body || 'It\'s time for a medication dose',
         icon: '/navikinder-logo-256.png',
         badge: '/navikinder-logo-256.png',
         data: data.data || {},
-        requireInteraction: true, // Keep notification visible until user interacts
-        // tag: 'medication-reminder', // Keep commented for testing
+        // iOS specific options
+        tag: `med-${Date.now()}`, // Unique tag to prevent grouping
+        renotify: true, // Force notification even if tag exists
+        requireInteraction: false, // iOS doesn't support this well
+        silent: false, // Ensure sound/vibration
+        vibrate: [200, 100, 200], // Vibration pattern
+        timestamp: Date.now(),
+        actions: [] // iOS PWA doesn't support actions
       };
-
-      sendLogToApp('info', '📱 Attempting to show notification', { title, body: options.body });
-
-      // First, try a simple test notification to verify showNotification works
-      try {
-        await self.registration.showNotification('🧪 DEBUG: Push Event Received', {
-          body: 'This confirms push events reach the service worker and showNotification works',
-          icon: 'https://via.placeholder.com/192x192.png'
-        });
-        sendLogToApp('success', '✅ DEBUG notification shown - push events work!');
-      } catch (debugError) {
-        sendLogToApp('error', '❌ DEBUG notification failed', {
-          name: debugError.name,
-          message: debugError.message,
-          permission: Notification.permission
-        });
-      }
-
-      // Now try the actual notification
-      try {
-        await self.registration.showNotification(title, options);
-        sendLogToApp('success', '✅ Main notification shown successfully!');
-      } catch (error) {
-        sendLogToApp('error', '❌ Main showNotification failed', {
-          name: error.name,
-          message: error.message,
-          permission: Notification.permission
-        });
-        
-        // Try to show a basic notification as fallback
-        try {
-          await self.registration.showNotification('Medication Reminder', {
-            body: 'It\'s time for a medication dose',
-            icon: 'https://via.placeholder.com/192x192.png'
+      
+      // Show notification with iOS-specific handling
+      await self.registration.showNotification(title, options);
+      
+      console.log('✅ Notification displayed successfully');
+      sendLogToApp('success', '✅ Push notification shown', { title, body: options.body });
+      
+      // For iOS, also try to focus the app if it's open
+      const clients = await self.clients.matchAll({ 
+        type: 'window',
+        includeUncontrolled: true 
+      });
+      
+      if (clients.length > 0) {
+        // Send message to all open windows
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'PUSH_RECEIVED',
+            data: data
           });
-          sendLogToApp('success', '✅ Fallback notification shown');
-        } catch (fallbackError) {
-          sendLogToApp('error', '❌ Even fallback notification failed', fallbackError.message);
-        }
+        });
       }
-    })()
-  );
+      
+    } catch (error) {
+      console.error('❌ Error showing notification:', error);
+      sendLogToApp('error', '❌ Notification error', error.message);
+      
+      // Fallback notification
+      try {
+        await self.registration.showNotification('Medication Reminder', {
+          body: 'Check your medications',
+          icon: '/navikinder-logo-256.png',
+          tag: `fallback-${Date.now()}`
+        });
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError);
+      }
+    }
+  })();
+  
+  event.waitUntil(showNotificationPromise);
 });
 
-// Notification click event - improved window management
+// Notification click handler
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if app is already open in a window
-      for (let i = 0; i < clientList.length; i++) {
-        const client = clientList[i];
-        if (client.url.includes(self.location.origin)) {
-          return client.focus();
-        }
+    clients.matchAll({ 
+      type: 'window',
+      includeUncontrolled: true 
+    }).then((clientList) => {
+      // Focus existing window or open new one
+      const client = clientList.find(c => c.url.includes(self.location.origin));
+      if (client) {
+        return client.focus();
       }
-      // No existing window found, open new one
       return clients.openWindow('/overview');
-    }).catch(error => {
-      console.error('Failed to handle notification click:', error);
     })
   );
+});
+
+// iOS-specific: Handle notification close
+self.addEventListener('notificationclose', (event) => {
+  console.log('Notification was closed', event);
 });

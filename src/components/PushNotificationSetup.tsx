@@ -1,10 +1,10 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bell, BellOff } from 'lucide-react';
+import { Bell, BellOff, TestTube } from 'lucide-react';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 export const PushNotificationSetup = () => {
-  const { isSupported, isSubscribed, isLoading, subscribe, unsubscribe } = usePushNotifications();
+  const { isSupported, isSubscribed, isLoading, isIOS, subscribe, unsubscribe, testNotification } = usePushNotifications();
 
   if (!isSupported) {
     return (
@@ -34,13 +34,16 @@ export const PushNotificationSetup = () => {
           Get instant alerts for medication reminders, even when the app isn't open.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="text-sm">
             {isSubscribed ? (
               <span className="text-green-600">✓ Notifications enabled</span>
             ) : (
               <span className="text-muted-foreground">Notifications disabled</span>
+            )}
+            {isIOS && isSubscribed && (
+              <div className="text-xs text-blue-600 mt-1">iOS device detected</div>
             )}
           </div>
           <Button
@@ -57,6 +60,29 @@ export const PushNotificationSetup = () => {
             )}
           </Button>
         </div>
+        
+        {/* iOS Test Button */}
+        {isSubscribed && isIOS && (
+          <div className="pt-2 border-t">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium">Test Notifications</div>
+                <div className="text-xs text-muted-foreground">
+                  Send a test notification to verify iOS notifications work
+                </div>
+              </div>
+              <Button
+                onClick={testNotification}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <TestTube className="h-4 w-4" />
+                Test
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
