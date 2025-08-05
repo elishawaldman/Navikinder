@@ -39,21 +39,37 @@ const Settings = () => {
   });
   const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [debugResults, setDebugResults] = useState<any>(null);
+  const [showDebugResults, setShowDebugResults] = useState(false);
 
   // Debug function for push notifications
   const runPushDebug = async () => {
     try {
+      setShowDebugResults(false);
       const results = await debugPushNotifications();
+      setDebugResults(results);
+      setShowDebugResults(true);
+      
+      // Summary for quick viewing
+      const summary = [
+        `Device: ${results.isIOS ? 'iOS' : 'Other'}`,
+        `Service Worker: ${results.checks.serviceWorkerRegistered ? '✅' : '❌'}`,
+        `Push Support: ${results.checks.pushManagerSupport ? '✅' : '❌'}`,
+        `Permission: ${results.checks.notificationPermission}`,
+        `Subscription: ${results.checks.hasActiveSubscription ? '✅' : '❌'}`,
+        `VAPID Key: ${results.checks.vapidKeyConfigured ? '✅' : '❌'}`
+      ].join('\n');
+      
       toast({
         title: "Debug Complete",
-        description: "Check browser console for detailed results",
+        description: summary,
       });
       console.log('🔍 Push Notification Debug Results:', results);
     } catch (error) {
       console.error('Debug failed:', error);
       toast({
         title: "Debug Failed", 
-        description: "Check browser console for errors",
+        description: error.message || "Check browser console for errors",
         variant: "destructive"
       });
     }
@@ -341,25 +357,49 @@ const Settings = () => {
               </CardContent>
             </Card>
 
+            {/* Push Notification Debug - Always available for troubleshooting */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Push Notification Debug</CardTitle>
+                <CardDescription>
+                  Run diagnostics to identify push notification issues
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button onClick={runPushDebug} variant="outline">
+                  Run Debug Check
+                </Button>
+                
+                {showDebugResults && debugResults && (
+                  <div className="mt-4 p-4 bg-muted rounded-lg">
+                    <h4 className="font-semibold mb-2">Debug Results:</h4>
+                    <div className="text-sm space-y-1">
+                      <div>🔍 <strong>Device:</strong> {debugResults.isIOS ? 'iOS' : 'Other'}</div>
+                      <div>🔧 <strong>Service Worker:</strong> {debugResults.checks.serviceWorkerRegistered ? '✅ Registered' : '❌ Not Registered'}</div>
+                      <div>📱 <strong>Push Support:</strong> {debugResults.checks.pushManagerSupport ? '✅ Supported' : '❌ Not Supported'}</div>
+                      <div>🔒 <strong>Permission:</strong> {debugResults.checks.notificationPermission}</div>
+                      <div>📡 <strong>Subscription:</strong> {debugResults.checks.hasActiveSubscription ? '✅ Active' : '❌ None'}</div>
+                      <div>🔑 <strong>VAPID Key:</strong> {debugResults.checks.vapidKeyConfigured ? '✅ Configured' : '❌ Missing'}</div>
+                      {debugResults.checks.subscriptionEndpoint && (
+                        <div>🌐 <strong>Endpoint:</strong> {debugResults.checks.isAppleEndpoint ? 'Apple Push Service' : 'FCM/Google'}</div>
+                      )}
+                      {debugResults.isIOS && debugResults.checks.iosSpecific && (
+                        <>
+                          <div>🍎 <strong>PWA Mode:</strong> {debugResults.checks.iosSpecific.isPWA ? '✅ Running as PWA' : '❌ Running in Safari'}</div>
+                          <div>🏠 <strong>Home Screen:</strong> {debugResults.checks.iosSpecific.isAddedToHomeScreen ? '✅ Added' : '❌ Not Added'}</div>
+                        </>
+                      )}
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        Time: {new Date(debugResults.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Push Notification Testing - Only show in development */}
-            {import.meta.env.DEV && (
-              <>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Push Notification Debug</CardTitle>
-                    <CardDescription>
-                      Run comprehensive diagnostics to identify push notification issues
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button onClick={runPushDebug} variant="outline">
-                      Run Debug Check
-                    </Button>
-                  </CardContent>
-                </Card>
-                <PushNotificationTest />
-              </>
-            )}
+            {import.meta.env.DEV && <PushNotificationTest />}
 
             {/* Danger Zone */}
             <Card className="border-destructive">
