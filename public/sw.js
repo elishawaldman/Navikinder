@@ -31,74 +31,49 @@ self.addEventListener('push', (event) => {
   let notificationData = {};
   
   if (event.data) {
-    notificationData = event.data.json();
+    try {
+      notificationData = event.data.json();
+    } catch (e) {
+      console.error('Failed to parse push data as JSON:', e);
+      notificationData = { body: event.data.text() }; // fallback
+    }
   }
   
   const title = notificationData.title || 'Medication Reminder';
   
-  // iOS-compatible notification options
+  // Simplified options for maximum iOS PWA compatibility
+  // Only use title, body, and PNG icon - remove all advanced features
   const options = {
     body: notificationData.body || 'It\'s time for a medication dose',
-    icon: '/placeholder.svg',
+    icon: '/favicon-32x32.png', // Use PNG for best iOS compatibility
     tag: 'medication-reminder',
-    data: notificationData.data || {},
-    // iOS-compatible settings
-    silent: false,
-    vibrate: [200, 100, 200]
+    data: notificationData.data || {}
+    // Remove: vibrate, badge, actions, requireInteraction - not supported on iOS PWA
   };
-
-  // Add actions only for non-iOS devices (iOS PWA doesn't support them reliably)
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  if (!isIOS) {
-    options.requireInteraction = true;
-    options.badge = '/placeholder.svg';
-    options.actions = [
-      {
-        action: 'given',
-        title: 'Mark as Given'
-      },
-      {
-        action: 'skip',
-        title: 'Skip Dose'
-      }
-    ];
-  }
 
   event.waitUntil(
     self.registration.showNotification(title, options)
+      .catch(error => {
+        console.error('Failed to show notification:', error);
+      })
   );
 });
 
-// Notification click event
+// Notification click event - simplified for iOS PWA compatibility
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
-  const action = event.action;
-  const data = event.notification.data;
-  
-  if (action === 'given' || action === 'skip') {
-    // Handle medication logging
-    event.waitUntil(
-      clients.matchAll().then((clientList) => {
-        if (clientList.length > 0) {
-          return clientList[0].postMessage({
-            type: 'MEDICATION_ACTION',
-            action: action,
-            doseInstanceId: data.doseInstanceId
-          });
-        }
-        return clients.openWindow('/overview');
-      })
-    );
-  } else {
-    // Default action - open app
-    event.waitUntil(
-      clients.matchAll().then((clientList) => {
-        if (clientList.length > 0) {
-          return clientList[0].focus();
-        }
-        return clients.openWindow('/overview');
-      })
-    );
-  }
+  // Simple click action - just open the app (no custom actions for iOS compatibility)
+  event.waitUntil(
+    clients.matchAll().then((clientList) => {
+      if (clientList.length > 0) {
+        // Focus existing tab/window
+        return clientList[0].focus();
+      }
+      // Open new window/tab
+      return clients.openWindow('/overview');
+    }).catch(error => {
+      console.error('Failed to handle notification click:', error);
+    })
+  );
 });
