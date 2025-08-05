@@ -3,7 +3,7 @@ const CACHE_NAME = 'medication-tracker-v1';
 const urlsToCache = [
   '/',
   '/manifest.json',
-  '/favicon-32x32.png' // Include notification icon in cache
+  '/Navikinder logo 256.png' // Include notification icon in cache
 ];
 
 // Install event - cache resources
@@ -76,7 +76,7 @@ self.addEventListener('push', (event) => {
   // Only use title, body, and PNG icon - remove all advanced features
   const options = {
     body: notificationData.body || 'It\'s time for a medication dose',
-    icon: '/favicon-32x32.png', // Use PNG for best iOS compatibility
+    icon: '/Navikinder logo 256.png', // Use larger icon for better iOS compatibility
     tag: 'medication-reminder',
     data: notificationData.data || {}
     // Remove: vibrate, badge, actions, requireInteraction - not supported on iOS PWA
