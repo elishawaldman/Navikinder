@@ -4,23 +4,9 @@ const CACHE_NAME = 'medication-tracker-v3'; // Bumped for logging fixes
 console.log('🚀 Service Worker script loaded');
 
 // Send initial log to indicate service worker is active
-const sendInitialLog = () => {
+const sendInitialLog = async () => {
   console.log('📡 Service Worker attempting to send initial log');
-  self.clients.matchAll().then(clients => {
-    console.log('👥 Found clients:', clients.length);
-    clients.forEach(client => {
-      console.log('📤 Sending initial log to client');
-      client.postMessage({
-        type: 'SW_LOG',
-        logType: 'info',
-        message: '🚀 Service Worker is active and ready',
-        data: { timestamp: new Date().toISOString() },
-        timestamp: new Date().toISOString()
-      });
-    });
-  }).catch(err => {
-    console.error('❌ Failed to send initial log:', err);
-  });
+  await sendLogToApp('info', '🚀 Service Worker is active and ready');
 };
 const urlsToCache = [
   '/',
@@ -65,6 +51,7 @@ self.addEventListener('activate', (event) => {
 // Listen for messages from main app
 self.addEventListener('message', (event) => {
   console.log('📨 Service Worker received message:', event.data);
+  
   if (event.data && event.data.type === 'TEST_CONNECTION') {
     sendLogToApp('success', '✅ Service Worker connection verified');
   } else if (event.data && event.data.type === 'TEST_LOG') {
@@ -95,22 +82,33 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Helper function to send logs to main app
-const sendLogToApp = (logType, message, data = null) => {
-  // Send to all clients
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'SW_LOG',
-        logType,
-        message,
-        data,
-        timestamp: new Date().toISOString()
-      });
+const sendLogToApp = async (logType, message, data = null) => {
+  try {
+    const clients = await self.clients.matchAll({ includeUncontrolled: true });
+    console.log(`[SW] Found ${clients.length} clients to send log to`);
+    
+    const logMessage = {
+      type: 'SW_LOG',
+      logType,
+      message,
+      data,
+      timestamp: new Date().toISOString()
+    };
+    
+    clients.forEach((client, index) => {
+      try {
+        console.log(`[SW] Sending log to client ${index + 1}:`, logMessage);
+        client.postMessage(logMessage);
+      } catch (clientError) {
+        console.error(`[SW] Failed to send to client ${index + 1}:`, clientError);
+      }
     });
-  });
-  
-  // Also log to console for development
-  console.log(`[SW] ${message}`, data || '');
+    
+    // Also log to console for development
+    console.log(`[SW] ${message}`, data || '');
+  } catch (error) {
+    console.error('[SW] Failed to send log to app:', error);
+  }
 };
 
 // Push event - iOS PWA compatible with flat payload structure
