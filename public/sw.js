@@ -115,6 +115,12 @@ self.addEventListener('fetch', (event) => {
 
 // Push event - iOS PWA compatible with flat payload structure
 self.addEventListener('push', (event) => {
+  // AGGRESSIVE logging - multiple methods to confirm push events are received
+  console.log('🚨 PUSH EVENT FIRED - THIS SHOULD APPEAR IN LOGS');
+  console.log('🚨 Event data exists:', !!event.data);
+  console.log('🚨 Notification permission:', Notification.permission);
+  
+  sendLogToApp('success', '🚨 CRITICAL: Push event fired on service worker!');
   sendLogToApp('info', '🔔 Push notification received');
   sendLogToApp('info', `🔒 Permission: ${Notification.permission}`);
   
@@ -155,11 +161,27 @@ self.addEventListener('push', (event) => {
 
       sendLogToApp('info', '📱 Attempting to show notification', { title, body: options.body });
 
+      // First, try a simple test notification to verify showNotification works
+      try {
+        await self.registration.showNotification('🧪 DEBUG: Push Event Received', {
+          body: 'This confirms push events reach the service worker and showNotification works',
+          icon: 'https://via.placeholder.com/192x192.png'
+        });
+        sendLogToApp('success', '✅ DEBUG notification shown - push events work!');
+      } catch (debugError) {
+        sendLogToApp('error', '❌ DEBUG notification failed', {
+          name: debugError.name,
+          message: debugError.message,
+          permission: Notification.permission
+        });
+      }
+
+      // Now try the actual notification
       try {
         await self.registration.showNotification(title, options);
-        sendLogToApp('success', '✅ Notification shown successfully!');
+        sendLogToApp('success', '✅ Main notification shown successfully!');
       } catch (error) {
-        sendLogToApp('error', '❌ showNotification failed', {
+        sendLogToApp('error', '❌ Main showNotification failed', {
           name: error.name,
           message: error.message,
           permission: Notification.permission
@@ -169,7 +191,7 @@ self.addEventListener('push', (event) => {
         try {
           await self.registration.showNotification('Medication Reminder', {
             body: 'It\'s time for a medication dose',
-            icon: '/navikinder-logo-256.png'
+            icon: 'https://via.placeholder.com/192x192.png'
           });
           sendLogToApp('success', '✅ Fallback notification shown');
         } catch (fallbackError) {
