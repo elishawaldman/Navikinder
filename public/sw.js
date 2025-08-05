@@ -35,13 +35,24 @@ self.addEventListener('push', (event) => {
   }
   
   const title = notificationData.title || 'Medication Reminder';
+  
+  // iOS-compatible notification options
   const options = {
     body: notificationData.body || 'It\'s time for a medication dose',
     icon: '/placeholder.svg',
-    badge: '/placeholder.svg',
     tag: 'medication-reminder',
-    requireInteraction: true,
-    actions: [
+    data: notificationData.data || {},
+    // iOS-compatible settings
+    silent: false,
+    vibrate: [200, 100, 200]
+  };
+
+  // Add actions only for non-iOS devices (iOS PWA doesn't support them reliably)
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (!isIOS) {
+    options.requireInteraction = true;
+    options.badge = '/placeholder.svg';
+    options.actions = [
       {
         action: 'given',
         title: 'Mark as Given'
@@ -50,9 +61,8 @@ self.addEventListener('push', (event) => {
         action: 'skip',
         title: 'Skip Dose'
       }
-    ],
-    data: notificationData.data || {}
-  };
+    ];
+  }
 
   event.waitUntil(
     self.registration.showNotification(title, options)
