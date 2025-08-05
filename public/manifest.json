@@ -10,37 +10,37 @@
   "categories": ["health", "medical", "productivity"],
   "icons": [
     {
-      "src": "/Navikinder logo 180.png",
+      "src": "/navikinder-logo-180.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/Navikinder logo 192.png",
+      "src": "/navikinder-logo-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/Navikinder logo 192.png",
+      "src": "/navikinder-logo-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/Navikinder logo 256.png",
+      "src": "/navikinder-logo-256.png",
       "sizes": "256x256",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/Navikinder logo 512.png",
+      "src": "/navikinder-logo-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/Navikinder logo 512.png",
+      "src": "/navikinder-logo-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

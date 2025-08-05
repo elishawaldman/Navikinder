@@ -3,7 +3,7 @@ const CACHE_NAME = 'medication-tracker-v1';
 const urlsToCache = [
   '/',
   '/manifest.json',
-  '/Navikinder logo 256.png' // Include notification icon in cache
+  '/navikinder-logo-256.png' // Include notification icon in cache
 ];
 
 // Install event - cache resources
@@ -55,38 +55,51 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Push event - handle push notifications
+// Push event - iOS compatible with proper event.waitUntil() wrapping
 self.addEventListener('push', (event) => {
   console.log('Push notification received:', event);
+  console.log('Service worker permission:', Notification.permission);
   
-  let notificationData = {};
-  
-  if (event.data) {
-    try {
-      notificationData = event.data.json();
-    } catch (e) {
-      console.error('Failed to parse push data as JSON:', e);
-      notificationData = { body: event.data.text() }; // fallback
-    }
-  }
-  
-  const title = notificationData.title || 'Medication Reminder';
-  
-  // Simplified options for maximum iOS PWA compatibility
-  // Only use title, body, and PNG icon - remove all advanced features
-  const options = {
-    body: notificationData.body || 'It\'s time for a medication dose',
-    icon: '/Navikinder logo 256.png', // Use larger icon for better iOS compatibility
-    tag: 'medication-reminder',
-    data: notificationData.data || {}
-    // Remove: vibrate, badge, actions, requireInteraction - not supported on iOS PWA
-  };
-
+  // CRITICAL: Wrap ALL push event code with event.waitUntil()
   event.waitUntil(
-    self.registration.showNotification(title, options)
-      .catch(error => {
+    (async () => {
+      // Check permission in service worker context
+      if (Notification.permission !== 'granted') {
+        console.error('No notification permission in service worker context');
+        return;
+      }
+
+      let notificationData = {};
+      
+      if (event.data) {
+        try {
+          notificationData = event.data.json();
+        } catch (e) {
+          console.error('Failed to parse push data as JSON:', e);
+          try {
+            notificationData = { body: event.data.text() };
+          } catch (textError) {
+            notificationData = { body: 'New notification' };
+          }
+        }
+      }
+      
+      const title = notificationData.title || 'Medication Reminder';
+      const options = {
+        body: notificationData.body || 'It\'s time for a medication dose',
+        icon: '/navikinder-logo-256.png', // Updated filename without spaces
+        tag: 'medication-reminder',
+        data: notificationData.data || {}
+      };
+
+      try {
+        await self.registration.showNotification(title, options);
+        console.log('Notification shown successfully');
+      } catch (error) {
         console.error('Failed to show notification:', error);
-      })
+        throw error; // Re-throw to ensure event.waitUntil() catches it
+      }
+    })()
   );
 });
 
