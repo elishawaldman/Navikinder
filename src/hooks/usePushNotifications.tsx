@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export const usePushNotifications = () => {
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   // Check if push notifications are supported
   useEffect(() => {
@@ -66,8 +67,12 @@ export const usePushNotifications = () => {
 
       const registration = await navigator.serviceWorker.ready;
       
-      // Generate VAPID keys - in production, these should be environment variables
-      const publicVapidKey = 'BMqSvZKdQ5qWQwGXXxNaUzgqTQgRvhV8sBrDqQhHqOiQ8TyxDKAB4Q3k8YNRKhDVdCWjLUXVEn1YFjFnKwqCmJ4';
+      // Get VAPID public key from environment
+      const publicVapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      
+      if (!publicVapidKey) {
+        throw new Error('VAPID public key not configured');
+      }
       
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,

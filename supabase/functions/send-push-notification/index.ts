@@ -32,7 +32,8 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY")!;
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY")!;
-    const vapidEmail = Deno.env.get("VAPID_EMAIL") || "mailto:support@medication-tracker.com";
+    const vapidEmailRaw = Deno.env.get("VAPID_EMAIL") || "support@medication-tracker.com";
+    const vapidEmail = vapidEmailRaw.startsWith("mailto:") ? vapidEmailRaw : `mailto:${vapidEmailRaw}`;
 
     // Configure VAPID details
     webpush.setVapidDetails(vapidEmail, vapidPublicKey, vapidPrivateKey);
@@ -42,11 +43,29 @@ const handler = async (req: Request): Promise<Response> => {
     const requestData: PushNotificationRequest = await req.json();
     console.log(`📱 Preparing push notification for ${requestData.child_name}'s ${requestData.medication_name}`);
 
+    // First, get the user ID from the email
+    const { data: userProfile, error: userError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", requestData.parent_email)
+      .single();
+
+    if (userError || !userProfile) {
+      console.error("❌ Error finding user by email:", userError);
+      return new Response(
+        JSON.stringify({ message: "User not found" }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // Get user's push subscriptions
     const { data: subscriptions, error: subscriptionError } = await supabase
       .from("push_subscriptions")
       .select("*")
-      .eq("user_id", requestData.parent_email); // This should be user_id, but we'll need to map email to user_id
+      .eq("user_id", userProfile.id);
 
     if (subscriptionError) {
       console.error("❌ Error fetching push subscriptions:", subscriptionError);

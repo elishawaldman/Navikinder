@@ -85,10 +85,43 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('✅ Email sent successfully:', emailResponse.data?.id)
 
+    // Also send push notification
+    let pushNotificationResult = null;
+    try {
+      const pushResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-push-notification`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dose_instance_id,
+          due_datetime,
+          dose_amount,
+          dose_unit,
+          medication_name,
+          child_name,
+          parent_email,
+          parent_name,
+        }),
+      });
+
+      if (pushResponse.ok) {
+        pushNotificationResult = await pushResponse.json();
+        console.log('✅ Push notification sent successfully');
+      } else {
+        console.log('⚠️ Push notification failed, but email was sent');
+      }
+    } catch (pushError) {
+      console.error('⚠️ Push notification error:', pushError);
+      // Don't fail the whole request if push notification fails
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         email_id: emailResponse.data?.id,
+        push_notification: pushNotificationResult,
         dose_instance_id 
       }),
       {

@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { TimezoneSelector } from '@/components/TimezoneSelector';
+import { PushNotificationTest } from '@/components/PushNotificationTest';
 import { useToast } from '@/hooks/use-toast';
 
 interface NotificationSettings {
@@ -120,10 +121,8 @@ const Settings = () => {
     try {
       const { error } = await supabase
         .from('user_notification_settings')
-        .upsert({
-          user_id: user.id,
-          ...newSettings
-        });
+        .update(newSettings)
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
@@ -321,6 +320,9 @@ const Settings = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Push Notification Testing - Only show in development */}
+            {import.meta.env.DEV && <PushNotificationTest />}
 
             {/* Danger Zone */}
             <Card className="border-destructive">
