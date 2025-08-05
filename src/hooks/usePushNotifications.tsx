@@ -82,15 +82,14 @@ export const usePushNotifications = () => {
       // Call the Supabase Edge Function to send a real push notification
       const { data, error } = await supabase.functions.invoke('send-push-notification', {
         body: {
-          user_id: user.id,
-          title: "🧪 Test Notification",
-          body: "This is a test push notification from your app!",
-          child_name: "Test User",
-          medication_name: "Test Medication",
-          dose_amount: "1",
-          dose_unit: "tablet",
+          dose_instance_id: "test-" + Date.now(),
           due_datetime: new Date().toISOString(),
-          dose_instance_id: "test-" + Date.now()
+          dose_amount: 1,
+          dose_unit: "tablet",
+          medication_name: "🧪 Test Medication",
+          child_name: "Test User",
+          parent_email: user.email!, // Edge Function expects parent_email, not user_id
+          parent_name: user.user_metadata?.display_name || "Test Parent"
         }
       });
 
