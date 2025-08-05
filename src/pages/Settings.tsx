@@ -16,6 +16,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { TimezoneSelector } from '@/components/TimezoneSelector';
 import { PushNotificationTest } from '@/components/PushNotificationTest';
 import { ServiceWorkerLogs } from '@/components/ServiceWorkerLogs';
+import { QuickTestNotification } from '@/components/QuickTestNotification';
 import { useToast } from '@/hooks/use-toast';
 import { debugPushNotifications } from '@/lib/pushNotificationDebug';
 
@@ -398,6 +399,9 @@ const Settings = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Quick Test Notification - Always available for mobile debugging */}
+            <QuickTestNotification />
 
             {/* Service Worker Logs - Always available for mobile debugging */}
             <ServiceWorkerLogs />
