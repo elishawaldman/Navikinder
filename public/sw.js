@@ -2,14 +2,35 @@
 const CACHE_NAME = 'medication-tracker-v1';
 const urlsToCache = [
   '/',
-  '/manifest.json'
+  '/manifest.json',
+  '/favicon-32x32.png' // Include notification icon in cache
 ];
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
+  self.skipWaiting(); // Activate immediately
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
+      .catch((error) => {
+        console.error('Cache installation failed:', error);
+      })
+  );
+});
+
+// Activate event - take control immediately
+self.addEventListener('activate', (event) => {
+  self.clients.claim(); // Take control of all pages immediately
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
   );
 });
 
@@ -18,8 +39,18 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request);
+        if (response) {
+          return response; // Return cached version
+        }
+        // Fetch from network
+        return fetch(event.request).catch((error) => {
+          console.error('Network fetch failed:', error);
+          throw error;
+        });
+      })
+      .catch((error) => {
+        console.error('Cache lookup failed:', error);
+        return fetch(event.request);
       })
   );
 });
@@ -59,18 +90,20 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Notification click event - simplified for iOS PWA compatibility
+// Notification click event - improved window management
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
-  // Simple click action - just open the app (no custom actions for iOS compatibility)
   event.waitUntil(
-    clients.matchAll().then((clientList) => {
-      if (clientList.length > 0) {
-        // Focus existing tab/window
-        return clientList[0].focus();
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Check if app is already open in a window
+      for (let i = 0; i < clientList.length; i++) {
+        const client = clientList[i];
+        if (client.url.includes(self.location.origin)) {
+          return client.focus();
+        }
       }
-      // Open new window/tab
+      // No existing window found, open new one
       return clients.openWindow('/overview');
     }).catch(error => {
       console.error('Failed to handle notification click:', error);
