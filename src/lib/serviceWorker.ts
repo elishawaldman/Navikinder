@@ -8,18 +8,27 @@ export const registerServiceWorker = async () => {
 
   try {
     const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('Service Worker registered:', registration);
+    console.log('✅ Service Worker registered:', registration);
 
-    // Listen for messages from service worker
+    // Listen for messages from service worker (including logs)
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data && event.data.type === 'MEDICATION_ACTION') {
         handleMedicationAction(event.data.action, event.data.doseInstanceId);
       }
+      // Log messages are handled by serviceWorkerLogger
     });
+
+    // Send a test message to verify communication
+    if (registration.active) {
+      registration.active.postMessage({
+        type: 'TEST_CONNECTION',
+        message: 'Main app connected to service worker'
+      });
+    }
 
     return registration;
   } catch (error) {
-    console.error('Service Worker registration failed:', error);
+    console.error('❌ Service Worker registration failed:', error);
   }
 };
 

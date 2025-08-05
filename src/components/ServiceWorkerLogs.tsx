@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { swLogger } from '@/lib/serviceWorkerLogger';
-import { Trash2, Eye } from 'lucide-react';
+import { Trash2, Eye, TestTube } from 'lucide-react';
 
 interface LogEntry {
   timestamp: string;
@@ -47,6 +47,28 @@ export const ServiceWorkerLogs = () => {
 
   const clearLogs = () => {
     swLogger.clear();
+  };
+
+  const testServiceWorkerConnection = async () => {
+    try {
+      // Test if service worker is registered and active
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration.active) {
+          registration.active.postMessage({
+            type: 'TEST_LOG',
+            message: 'Testing service worker connection'
+          });
+          swLogger.addLog('info', '📤 Sent test message to service worker');
+        } else {
+          swLogger.addLog('error', '❌ No active service worker found');
+        }
+      } else {
+        swLogger.addLog('error', '❌ Service Worker not supported');
+      }
+    } catch (error) {
+      swLogger.addLog('error', `❌ Service Worker test failed: ${error.message}`);
+    }
   };
 
   if (!isVisible) {
@@ -89,6 +111,9 @@ export const ServiceWorkerLogs = () => {
             )}
           </div>
           <div className="flex gap-2">
+            <Button onClick={testServiceWorkerConnection} variant="outline" size="sm">
+              <TestTube className="h-4 w-4" />
+            </Button>
             <Button onClick={clearLogs} variant="outline" size="sm">
               <Trash2 className="h-4 w-4" />
             </Button>

@@ -1,5 +1,27 @@
 // Service Worker for PWA and Push Notifications
-const CACHE_NAME = 'medication-tracker-v2'; // Bumped for critical iOS fixes
+const CACHE_NAME = 'medication-tracker-v3'; // Bumped for logging fixes
+
+console.log('🚀 Service Worker script loaded');
+
+// Send initial log to indicate service worker is active
+const sendInitialLog = () => {
+  console.log('📡 Service Worker attempting to send initial log');
+  self.clients.matchAll().then(clients => {
+    console.log('👥 Found clients:', clients.length);
+    clients.forEach(client => {
+      console.log('📤 Sending initial log to client');
+      client.postMessage({
+        type: 'SW_LOG',
+        logType: 'info',
+        message: '🚀 Service Worker is active and ready',
+        data: { timestamp: new Date().toISOString() },
+        timestamp: new Date().toISOString()
+      });
+    });
+  }).catch(err => {
+    console.error('❌ Failed to send initial log:', err);
+  });
+};
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -20,7 +42,9 @@ self.addEventListener('install', (event) => {
 
 // Activate event - take control immediately
 self.addEventListener('activate', (event) => {
+  console.log('🔄 Service Worker activated');
   self.clients.claim(); // Take control of all pages immediately
+  
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -30,8 +54,23 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
+    }).then(() => {
+      console.log('🧹 Cache cleanup complete');
+      // Send initial log after activation
+      setTimeout(sendInitialLog, 1000); // Delay to ensure clients are ready
     })
   );
+});
+
+// Listen for messages from main app
+self.addEventListener('message', (event) => {
+  console.log('📨 Service Worker received message:', event.data);
+  if (event.data && event.data.type === 'TEST_CONNECTION') {
+    sendLogToApp('success', '✅ Service Worker connection verified');
+  } else if (event.data && event.data.type === 'TEST_LOG') {
+    sendLogToApp('success', '🧪 Service Worker test message received');
+    sendLogToApp('info', '📊 Service Worker is functioning correctly');
+  }
 });
 
 // Fetch event - serve from cache when offline
