@@ -55,46 +55,87 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Push event - iOS compatible with proper event.waitUntil() wrapping
+// Helper function to send logs to main app
+const sendLogToApp = (logType, message, data = null) => {
+  // Send to all clients
+  self.clients.matchAll().then(clients => {
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'SW_LOG',
+        logType,
+        message,
+        data,
+        timestamp: new Date().toISOString()
+      });
+    });
+  });
+  
+  // Also log to console for development
+  console.log(`[SW] ${message}`, data || '');
+};
+
+// Push event - iOS PWA compatible with flat payload structure
 self.addEventListener('push', (event) => {
-  console.log('Push notification received:', event);
-  console.log('Service worker permission:', Notification.permission);
+  sendLogToApp('info', '🔔 Push notification received');
+  sendLogToApp('info', `🔒 Permission: ${Notification.permission}`);
   
   // CRITICAL: Wrap ALL push event code with event.waitUntil()
   event.waitUntil(
     (async () => {
-      let payload = {};
+      let data = {};
       
       if (event.data) {
         try {
-          payload = event.data.json();
+          data = event.data.json();
+          sendLogToApp('success', '📦 Successfully parsed push data', data);
         } catch (e) {
-          console.error('Failed to parse JSON:', e);
+          sendLogToApp('error', '❌ Failed to parse JSON', e.message);
           try {
             // Fallback for simple text pushes
-            payload = { notification: { body: event.data.text() } };
+            data = { body: event.data.text() };
+            sendLogToApp('warning', '⚠️ Using text fallback');
           } catch (textError) {
-            console.error('Failed to parse text:', textError);
-            payload = { notification: {} };
+            sendLogToApp('error', '❌ Failed to parse text', textError.message);
+            data = {};
           }
         }
+      } else {
+        sendLogToApp('warning', '⚠️ No data in push event');
       }
       
-      const notificationData = payload.notification || {};
-      const title = notificationData.title || 'Medication Reminder';
+      // Use flat structure - no nested notification object
+      const title = data.title || 'Medication Reminder';
       const options = {
-        body: notificationData.body || 'It\'s time for a medication dose',
+        body: data.body || 'It\'s time for a medication dose',
         icon: '/navikinder-logo-256.png',
-        data: notificationData.data || {}
+        badge: '/navikinder-logo-256.png',
+        data: data.data || {},
+        requireInteraction: true, // Keep notification visible until user interacts
         // tag: 'medication-reminder', // Keep commented for testing
       };
 
+      sendLogToApp('info', '📱 Attempting to show notification', { title, body: options.body });
+
       try {
         await self.registration.showNotification(title, options);
-        console.log('✅ Notification shown successfully');
+        sendLogToApp('success', '✅ Notification shown successfully!');
       } catch (error) {
-        // If this is NotAllowedError, user permission/settings are the blocker
-        console.error('❌ showNotification failed:', error.name, error.message, 'permission=', Notification.permission);
+        sendLogToApp('error', '❌ showNotification failed', {
+          name: error.name,
+          message: error.message,
+          permission: Notification.permission
+        });
+        
+        // Try to show a basic notification as fallback
+        try {
+          await self.registration.showNotification('Medication Reminder', {
+            body: 'It\'s time for a medication dose',
+            icon: '/navikinder-logo-256.png'
+          });
+          sendLogToApp('success', '✅ Fallback notification shown');
+        } catch (fallbackError) {
+          sendLogToApp('error', '❌ Even fallback notification failed', fallbackError.message);
+        }
       }
     })()
   );

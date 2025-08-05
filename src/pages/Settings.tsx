@@ -15,6 +15,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { TimezoneSelector } from '@/components/TimezoneSelector';
 import { PushNotificationTest } from '@/components/PushNotificationTest';
+import { ServiceWorkerLogs } from '@/components/ServiceWorkerLogs';
 import { useToast } from '@/hooks/use-toast';
 import { debugPushNotifications } from '@/lib/pushNotificationDebug';
 
@@ -397,6 +398,9 @@ const Settings = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Service Worker Logs - Always available for mobile debugging */}
+            <ServiceWorkerLogs />
 
             {/* Push Notification Testing - Only show in development */}
             {import.meta.env.DEV && <PushNotificationTest />}
