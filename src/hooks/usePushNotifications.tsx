@@ -79,6 +79,10 @@ export const usePushNotifications = () => {
         applicationServerKey: urlB64ToUint8Array(publicVapidKey)
       });
 
+      // Debug: Log subscription endpoint for verification
+      console.log('✅ Push subscription created:', subscription.endpoint);
+      console.log('📱 Is iOS APNs?', subscription.endpoint.includes('web.push.apple.com'));
+
       // Store subscription in Supabase
       const { error } = await supabase
         .from('push_subscriptions')

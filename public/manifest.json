@@ -1,8 +1,10 @@
 {
+  "id": "/",
   "name": "Navikinder",
-  "short_name": "Navikinder",
+  "short_name": "Navikinder", 
   "description": "Track and manage your child's medications with reminders",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",

@@ -1,5 +1,5 @@
 // Service Worker for PWA and Push Notifications
-const CACHE_NAME = 'medication-tracker-v1';
+const CACHE_NAME = 'medication-tracker-v2'; // Bumped for critical iOS fixes
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -63,41 +63,37 @@ self.addEventListener('push', (event) => {
   // CRITICAL: Wrap ALL push event code with event.waitUntil()
   event.waitUntil(
     (async () => {
-      // Check permission in service worker context
-      if (Notification.permission !== 'granted') {
-        console.error('No notification permission in service worker context');
-        return;
-      }
-
-      let notificationData = {};
+      let data = {};
       
       if (event.data) {
         try {
-          notificationData = event.data.json();
+          data = event.data.json();
         } catch (e) {
-          console.error('Failed to parse push data as JSON:', e);
+          console.error('Failed to parse JSON:', e);
           try {
-            notificationData = { body: event.data.text() };
+            data = { body: event.data.text() };
           } catch (textError) {
-            notificationData = { body: 'New notification' };
+            console.error('Failed to parse text:', textError);
+            data = {};
           }
         }
       }
       
-      const title = notificationData.title || 'Medication Reminder';
+      const title = data.title || 'Medication Reminder';
       const options = {
-        body: notificationData.body || 'It\'s time for a medication dose',
-        icon: '/navikinder-logo-256.png', // Updated filename without spaces
-        tag: 'medication-reminder',
-        data: notificationData.data || {}
+        body: data.body || 'It\'s time for a medication dose',
+        icon: '/navikinder-logo-256.png',
+        // Remove tag during testing to avoid notification replacement
+        // tag: 'medication-reminder',
+        data: data.data || {}
       };
 
       try {
         await self.registration.showNotification(title, options);
-        console.log('Notification shown successfully');
+        console.log('✅ Notification shown successfully');
       } catch (error) {
-        console.error('Failed to show notification:', error);
-        throw error; // Re-throw to ensure event.waitUntil() catches it
+        // If this is NotAllowedError, user permission/settings are the blocker
+        console.error('❌ showNotification failed:', error.name, error.message, 'permission=', Notification.permission);
       }
     })()
   );
