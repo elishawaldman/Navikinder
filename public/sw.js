@@ -63,29 +63,30 @@ self.addEventListener('push', (event) => {
   // CRITICAL: Wrap ALL push event code with event.waitUntil()
   event.waitUntil(
     (async () => {
-      let data = {};
+      let payload = {};
       
       if (event.data) {
         try {
-          data = event.data.json();
+          payload = event.data.json();
         } catch (e) {
           console.error('Failed to parse JSON:', e);
           try {
-            data = { body: event.data.text() };
+            // Fallback for simple text pushes
+            payload = { notification: { body: event.data.text() } };
           } catch (textError) {
             console.error('Failed to parse text:', textError);
-            data = {};
+            payload = { notification: {} };
           }
         }
       }
       
-      const title = data.title || 'Medication Reminder';
+      const notificationData = payload.notification || {};
+      const title = notificationData.title || 'Medication Reminder';
       const options = {
-        body: data.body || 'It\'s time for a medication dose',
+        body: notificationData.body || 'It\'s time for a medication dose',
         icon: '/navikinder-logo-256.png',
-        // Remove tag during testing to avoid notification replacement
-        // tag: 'medication-reminder',
-        data: data.data || {}
+        data: notificationData.data || {}
+        // tag: 'medication-reminder', // Keep commented for testing
       };
 
       try {

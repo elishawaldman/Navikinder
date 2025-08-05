@@ -89,17 +89,19 @@ const handler = async (req: Request): Promise<Response> => {
       minute: '2-digit'
     });
 
-    // Create notification payload
+    // Create notification payload with a nested 'notification' object for better compatibility
     const payload = JSON.stringify({
-      title: "Medication Reminder",
-      body: `Time for ${requestData.child_name}'s ${requestData.medication_name} (${requestData.dose_amount} ${requestData.dose_unit}) - Due at ${dueTime}`,
-      data: {
-        doseInstanceId: requestData.dose_instance_id,
-        medicationName: requestData.medication_name,
-        childName: requestData.child_name,
-        doseAmount: requestData.dose_amount,
-        doseUnit: requestData.dose_unit,
-        dueTime: requestData.due_datetime
+      notification: {
+        title: "Medication Reminder",
+        body: `Time for ${requestData.child_name}'s ${requestData.medication_name} (${requestData.dose_amount} ${requestData.dose_unit}) - Due at ${dueTime}`,
+        data: {
+          doseInstanceId: requestData.dose_instance_id,
+          medicationName: requestData.medication_name,
+          childName: requestData.child_name,
+          doseAmount: requestData.dose_amount,
+          doseUnit: requestData.dose_unit,
+          dueTime: requestData.due_datetime
+        }
       }
     });
 
