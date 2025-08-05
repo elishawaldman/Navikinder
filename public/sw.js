@@ -1,7 +1,37 @@
 // Service Worker for PWA and Push Notifications
-const CACHE_NAME = 'medication-tracker-v3'; // Bumped for logging fixes
+const CACHE_NAME = 'medication-tracker-v4'; // Bumped for function ordering fix
 
 console.log('🚀 Service Worker script loaded');
+
+// Helper function to send logs to main app - MUST BE DEFINED FIRST
+const sendLogToApp = async (logType, message, data = null) => {
+  try {
+    const clients = await self.clients.matchAll({ includeUncontrolled: true });
+    console.log(`[SW] Found ${clients.length} clients to send log to`);
+    
+    const logMessage = {
+      type: 'SW_LOG',
+      logType,
+      message,
+      data,
+      timestamp: new Date().toISOString()
+    };
+    
+    clients.forEach((client, index) => {
+      try {
+        console.log(`[SW] Sending log to client ${index + 1}:`, logMessage);
+        client.postMessage(logMessage);
+      } catch (clientError) {
+        console.error(`[SW] Failed to send to client ${index + 1}:`, clientError);
+      }
+    });
+    
+    // Also log to console for development
+    console.log(`[SW] ${message}`, data || '');
+  } catch (error) {
+    console.error('[SW] Failed to send log to app:', error);
+  }
+};
 
 // Send initial log to indicate service worker is active
 const sendInitialLog = async () => {
@@ -81,35 +111,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Helper function to send logs to main app
-const sendLogToApp = async (logType, message, data = null) => {
-  try {
-    const clients = await self.clients.matchAll({ includeUncontrolled: true });
-    console.log(`[SW] Found ${clients.length} clients to send log to`);
-    
-    const logMessage = {
-      type: 'SW_LOG',
-      logType,
-      message,
-      data,
-      timestamp: new Date().toISOString()
-    };
-    
-    clients.forEach((client, index) => {
-      try {
-        console.log(`[SW] Sending log to client ${index + 1}:`, logMessage);
-        client.postMessage(logMessage);
-      } catch (clientError) {
-        console.error(`[SW] Failed to send to client ${index + 1}:`, clientError);
-      }
-    });
-    
-    // Also log to console for development
-    console.log(`[SW] ${message}`, data || '');
-  } catch (error) {
-    console.error('[SW] Failed to send log to app:', error);
-  }
-};
+// sendLogToApp is now defined at the top of the file
 
 // Push event - iOS PWA compatible with flat payload structure
 self.addEventListener('push', (event) => {
