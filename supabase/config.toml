@@ -1,0 +1,84 @@
+project_id = "nqrtkgxqgenflhpijpxa"
+
+[functions.send-push-notification]
+verify_jwt = false
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+enabled = true
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[realtime]
+enabled = true
+ip_version = "ipv6"
+port = 54323
+max_header_length = 4096
+
+[studio]
+enabled = true
+port = 54324
+api_url = "http://127.0.0.1:54321"
+openai_api_key = "env(OPENAI_API_KEY)"
+
+[inbucket]
+enabled = true
+port = 54325
+smtp_port = 54326
+pop3_port = 54327
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+s3_max_path_length = 2048
+
+[auth]
+enabled = true
+additional_redirect_urls = ["https://127.0.0.1:3000/**"]
+jwt_expiry = 3600
+enable_signup = true
+email_double_confirm_changes_enabled = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+template_invite = "./supabase/templates/invite.html"
+template_confirmation = "./supabase/templates/confirmation.html"
+template_recovery = "./supabase/templates/recovery.html"
+template_magic_link = "./supabase/templates/magic_link.html"
+
+[auth.sms]
+enable_signup = true
+enable_confirmations = false
+template = "./supabase/templates/sms.html"
+
+[edge_runtime]
+enabled = true
+port = 54321
+inspector_port = 8083
+
+[analytics]
+enabled = false
+port = 54327
+vector_port = 54328
+gcp_project_id = ""
+gcp_project_number = ""
+gcp_jwt_path = "supabase/gcp.json"
+
+[functions.send-medication-reminder]
+verify_jwt = false
