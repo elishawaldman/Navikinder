@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { debugPushNotifications, testPushSubscription } from '@/lib/pushNotificationDebug';
 
 export const usePushNotifications = () => {
   const [isSupported, setIsSupported] = useState(false);
@@ -55,6 +56,20 @@ export const usePushNotifications = () => {
     
     setIsLoading(true);
     try {
+      // Run comprehensive debug check first
+      console.log('🚀 Starting push notification subscription...');
+      const debugResults = await debugPushNotifications();
+      
+      // Check for iOS specific requirements
+      if (debugResults.isIOS && !debugResults.checks.iosSpecific?.isPWA) {
+        toast({
+          title: "iOS Setup Required",
+          description: "On iOS, please add this app to your home screen first, then try enabling notifications",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const permission = await requestPermission();
       if (!permission) {
         toast({
@@ -71,17 +86,32 @@ export const usePushNotifications = () => {
       const publicVapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
       
       if (!publicVapidKey) {
-        throw new Error('VAPID public key not configured');
+        console.error('❌ VAPID public key not found. Please set VITE_VAPID_PUBLIC_KEY in your environment.');
+        toast({
+          title: "Configuration Error",
+          description: "VAPID public key not configured. Please contact support.",
+          variant: "destructive"
+        });
+        return;
       }
+
+      console.log('🔑 VAPID key found, length:', publicVapidKey.length);
       
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlB64ToUint8Array(publicVapidKey)
       });
 
-      // Debug: Log subscription endpoint for verification
-      console.log('✅ Push subscription created:', subscription.endpoint);
-      console.log('📱 Is iOS APNs?', subscription.endpoint.includes('web.push.apple.com'));
+      // Enhanced debug logging
+      console.log('✅ Push subscription created:', {
+        endpoint: subscription.endpoint,
+        isApple: subscription.endpoint.includes('web.push.apple.com'),
+        isFCM: subscription.endpoint.includes('fcm.googleapis.com'),
+        keys: {
+          p256dh: subscription.getKey('p256dh') ? 'present' : 'missing',
+          auth: subscription.getKey('auth') ? 'present' : 'missing'
+        }
+      });
 
       // Store subscription in Supabase
       const { error } = await supabase
@@ -99,13 +129,24 @@ export const usePushNotifications = () => {
       setIsSubscribed(true);
       toast({
         title: "Notifications Enabled",
-        description: "You'll now receive push notifications for medication reminders"
+        description: `Push notifications enabled! ${subscription.endpoint.includes('web.push.apple.com') ? '(iOS/Safari)' : '(Chrome/FCM)'}`
       });
-    } catch (error) {
-      console.error('Error subscribing to push notifications:', error);
+    } catch (error: any) {
+      console.error('❌ Error subscribing to push notifications:', error);
+      
+      // Enhanced error messages
+      let errorMessage = "Failed to enable push notifications";
+      if (error.message?.includes('VAPID')) {
+        errorMessage = "VAPID key configuration error";
+      } else if (error.message?.includes('permission')) {
+        errorMessage = "Permission denied for notifications";
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = "Push notifications not supported on this device";
+      }
+      
       toast({
         title: "Subscription Failed",
-        description: "Failed to enable push notifications",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

@@ -16,6 +16,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { TimezoneSelector } from '@/components/TimezoneSelector';
 import { PushNotificationTest } from '@/components/PushNotificationTest';
 import { useToast } from '@/hooks/use-toast';
+import { debugPushNotifications } from '@/lib/pushNotificationDebug';
 
 interface NotificationSettings {
   email_notifications_enabled: boolean;
@@ -38,6 +39,25 @@ const Settings = () => {
   });
   const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  // Debug function for push notifications
+  const runPushDebug = async () => {
+    try {
+      const results = await debugPushNotifications();
+      toast({
+        title: "Debug Complete",
+        description: "Check browser console for detailed results",
+      });
+      console.log('🔍 Push Notification Debug Results:', results);
+    } catch (error) {
+      console.error('Debug failed:', error);
+      toast({
+        title: "Debug Failed", 
+        description: "Check browser console for errors",
+        variant: "destructive"
+      });
+    }
+  };
 
   useEffect(() => {
     if (!user) {
@@ -322,7 +342,24 @@ const Settings = () => {
             </Card>
 
             {/* Push Notification Testing - Only show in development */}
-            {import.meta.env.DEV && <PushNotificationTest />}
+            {import.meta.env.DEV && (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Push Notification Debug</CardTitle>
+                    <CardDescription>
+                      Run comprehensive diagnostics to identify push notification issues
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button onClick={runPushDebug} variant="outline">
+                      Run Debug Check
+                    </Button>
+                  </CardContent>
+                </Card>
+                <PushNotificationTest />
+              </>
+            )}
 
             {/* Danger Zone */}
             <Card className="border-destructive">
