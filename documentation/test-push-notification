@@ -1,0 +1,106 @@
+## **Critical Issues Found:**
+
+1. **Hardcoded VAPID key in frontend** - The `usePushNotifications.tsx` has a hardcoded VAPID public key instead of using the environment variable
+2. **User ID mapping issue** - The push notification function is looking for subscriptions by email instead of user ID
+3. **Missing VAPID key in frontend** - The frontend needs access to the public VAPID key
+
+## **Testing Strategies (Before Going Live):**
+
+### **1. Local Edge Function Testing**
+You can test the edge functions locally using the Supabase CLI:
+
+```bash
+# Test the push notification function directly
+supabase functions serve --debug
+
+# In another terminal, test with curl:
+curl -X POST 'http://localhost:54321/functions/v1/send-push-notification' \
+  -H 'Authorization: Bearer YOUR_ANON_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "dose_instance_id": "test-123",
+    "due_datetime": "2024-01-01T10:00:00Z",
+    "dose_amount": 5,
+    "dose_unit": "ml",
+    "medication_name": "Test Medicine",
+    "child_name": "Test Child",
+    "parent_email": "test@example.com",
+    "parent_name": "Test Parent"
+  }'
+```
+
+### **2. Database Testing**
+Check if push subscriptions are being stored correctly:
+
+```sql
+-- Check if subscriptions are being created
+SELECT * FROM push_subscriptions;
+
+-- Test with a sample subscription
+INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, user_agent) 
+VALUES ('your-user-id', 'test-endpoint', 'test-p256dh', 'test-auth', 'test-agent');
+```
+
+### **3. Service Worker Testing**
+Test the service worker registration:
+
+```javascript
+// In browser console:
+navigator.serviceWorker.getRegistrations().then(registrations => {
+  console.log('Registered service workers:', registrations);
+});
+
+// Check push manager support:
+navigator.serviceWorker.ready.then(registration => {
+  console.log('Push manager supported:', 'pushManager' in registration);
+});
+```
+
+### **4. VAPID Key Validation**
+Test if your VAPID keys are properly configured:
+
+```bash
+# You can test VAPID keys using a Node.js script:
+const webpush = require('web-push');
+webpush.setVapidDetails(
+  'mailto:your-email@example.com',
+  'YOUR_VAPID_PUBLIC_KEY',
+  'YOUR_VAPID_PRIVATE_KEY'
+);
+console.log('VAPID keys configured successfully');
+```
+
+### **5. PWA Installation Testing**
+Test PWA installation on different devices:
+- **Desktop Chrome/Edge**: Look for install icon in address bar
+- **iOS Safari**: Add to Home Screen option in share menu
+- **Android Chrome**: Install app prompt should appear
+
+## **Recommended Fix Plan:**
+
+1. **Fix VAPID Key Issues**:
+   - Update `usePushNotifications.tsx` to use the actual VAPID public key from environment
+   - Add proper environment variable handling for the frontend
+
+2. **Fix User ID Mapping**:
+   - Update the push notification edge function to properly map user email to user ID
+   - Or modify it to work with the current user context
+
+3. **Add Debug Logging**:
+   - Add more comprehensive logging to both the frontend hook and edge function
+   - Add console logs to track subscription creation and push sending
+
+4. **Create Test Utilities**:
+   - Add a test page or component to manually trigger push notifications
+   - Add buttons to test subscription/unsubscription flow
+
+5. **Implement Error Handling**:
+   - Add better error handling for failed notifications
+   - Add retry logic for temporary failures
+   - Add user feedback for various error scenarios
+
+6. **Add Notification Testing**:
+   - Create a test notification sender that doesn't rely on the medication reminder system
+   - Add manual push notification triggers for testing
+
+Implement the plan

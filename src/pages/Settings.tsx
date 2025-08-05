@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
+import { TimezoneSelector } from '@/components/TimezoneSelector';
 import { useToast } from '@/hooks/use-toast';
 
 interface NotificationSettings {
@@ -238,6 +239,17 @@ const Settings = () => {
                     </Button>
                   </div>
                 </div>
+                
+                <Separator />
+                
+                <TimezoneSelector 
+                  onTimezoneChange={(timezone) => {
+                    toast({
+                      title: "Timezone updated",
+                      description: `Your timezone has been set to ${timezone}. Medication reminders will now show the correct local time.`,
+                    });
+                  }}
+                />
               </CardContent>
             </Card>
 

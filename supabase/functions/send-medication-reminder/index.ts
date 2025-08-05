@@ -21,6 +21,7 @@ interface MedicationReminderRequest {
   child_name: string
   parent_email: string
   parent_name?: string
+  parent_timezone?: string
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -41,9 +42,10 @@ const handler = async (req: Request): Promise<Response> => {
       child_name,
       parent_email,
       parent_name,
+      parent_timezone = 'UTC',
     }: MedicationReminderRequest = await req.json()
 
-    console.log(`📧 Sending reminder for ${child_name}'s ${medication_name} to ${parent_email}`)
+    console.log(`📧 Sending reminder for ${child_name}'s ${medication_name} to ${parent_email} (timezone: ${parent_timezone})`)
 
     // Render the React Email template
     const html = await renderAsync(
@@ -54,14 +56,16 @@ const handler = async (req: Request): Promise<Response> => {
         dose_unit,
         due_datetime,
         parent_name,
+        parent_timezone,
       })
     )
 
-    // Format subject line
+    // Format subject line with user's timezone
     const dueTime = new Date(due_datetime).toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
+      timeZone: parent_timezone,
     })
 
     const subject = `💊 Reminder: ${child_name}'s ${medication_name} due at ${dueTime}`

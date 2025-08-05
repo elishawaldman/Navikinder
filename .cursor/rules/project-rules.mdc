@@ -1,0 +1,131 @@
+---
+description: Apply these rules when creating the project
+alwaysApply: false
+---
+## Project Overview
+
+*   **Type:** Web Application
+*   **Description:** A pediatric medication tracker web app for parents and caregivers.
+*   **Primary Goal:** Provide ease of use and reliability for caregivers to manage children’s medications.
+
+## Project Structure
+
+### Framework-Specific Routing
+
+*   **Directory Rules:**
+
+    *   `Next.js 14 (App Router)`: Use `app/` directory with nested route folders; each route folder contains `page.tsx`.
+    *   Example 1: "Next.js 14 (App Router)" → `app/[route]/page.tsx` conventions
+    *   Example 2: "Next.js (Pages Router)" → `pages/[route].tsx` pattern
+    *   Example 3: "React Router 6" → `src/routes/` with `createBrowserRouter`
+
+### Core Directories
+
+*   **Versioned Structure:**
+
+    *   `app/api`: Next.js 14 API routes with Route Handlers
+    *   `app/medications`: Medication overview and entry pages
+    *   `app/children/[childId]`: Dynamic child profile and history
+    *   `src/lib`: Shared utilities and Supabase client initialization
+    *   `src/components`: Reusable React UI components
+
+### Key Files
+
+*   **Stack-Versioned Patterns:**
+
+    *   `app/layout.tsx`: Next.js 14 root layout with global providers
+    *   `app/page.tsx`: Dashboard/medication overview landing page
+    *   `app/api/ocr/route.ts`: Route Handler for Google Cloud Vision OCR processing
+    *   `app/medications/[childId]/history/page.tsx`: Medication history and PDF export UI
+    *   `pages/_app.js`: Next.js Pages Router customization (not used in App Router projects)
+
+## Tech Stack Rules
+
+*   **Version Enforcement:**
+
+    *   `next@14`: App Router required, no `getInitialProps`
+    *   `supabase-js@2`: Use `createClient` in server components; enforce RLS and type-safe queries
+    *   `@google-cloud/vision@2`: Use server-side OCR processing in Route Handlers
+    *   `vercel@latest`: Deploy via Vercel CLI, enforce environment variable checks
+
+## PRD Compliance
+
+*   "Support multiple children under a single account.": Implement dynamic `children/[childId]` routes for profile management.
+*   "Upload and OCR Page": Handle image uploads via `app/api/ocr/route.ts` with Google Cloud Vision API.
+*   "PDF export with simple layout": Provide `app/api/export/route.ts` for generating PDF with header/footer.
+
+## App Flow Integration
+
+*   **Stack-Aligned Flow:**
+
+    *   Next.js 14 Auth Flow → `app/auth/login/page.tsx` uses Supabase Auth server actions
+    *   Medication Flow → `app/medications/[childId]/page.tsx` server component for data fetching and `use client` for interactive controls
+
+## Best Practices
+
+*   React / Next.js
+
+    *   Use Server Components for data fetching in Route Handlers.
+    *   Leverage Layouts and nested folders to share UI.
+    *   Use `next/image` for optimized image handling.
+    *   Keep pages under 300 lines; abstract common logic into Hooks and Utilities.
+
+*   Supabase
+
+    *   Enforce Row Level Security and manage permissions via policies.
+    *   Use typed schemas with Zod for safe data parsing.
+    *   Prefer Edge Functions for sensitive operations.
+
+*   Google Cloud Vision API
+
+    *   Restrict API keys via referrer restrictions.
+    *   Sanitize and validate image uploads before sending to OCR.
+    *   Provide fallback for failed OCR attempts.
+
+*   Vercel
+
+    *   Use Environment Variables for all secrets.
+    *   Configure `vercel.json` for custom rewrites and headers.
+    *   Monitor deployments and performance via Vercel dashboard.
+
+*   Cursor
+
+    *   Align AI completions with project ESLint and Prettier configs.
+    *   Use project-specific snippet collections for recurring patterns.
+
+*   Lovable.dev
+
+    *   Generate accessible components (ARIA, keyboard navigation).
+    *   Review generated styles to match design system tokens.
+    *   Integrate generated components into existing folder structure.
+
+## Rules
+
+*   Derive folder/file patterns **directly** from `techStackDoc` versions.
+*   If Next.js 14 App Router: Enforce `app/` directory with nested route folders.
+*   If Pages Router: Use `pages/*.tsx` flat structure.
+*   Mirror this logic for React Router, SvelteKit, etc.
+*   Never mix version patterns (e.g., no `pages/` in App Router projects).
+
+## Rules Metrics
+
+Add the following instruction for analyzing rules usage:
+
+Before starting the project development, create a metrics file in the root of the project called
+
+`cursor_metrics.md`.
+
+### Instructions:
+
+*   Each time a cursor rule is used as context, update `cursor_metrics.md`.
+*   Use the following format for `cursor_metrics.md:`
+
+Rules Metrics (h1)
+
+Usage (h2)
+
+The number of times rules is used as context
+
+*   rule-name.mdc: 5
+*   another-rule.mdc: 2
+*   ...other rules

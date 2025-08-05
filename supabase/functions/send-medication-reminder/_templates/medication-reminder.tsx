@@ -21,6 +21,7 @@ interface MedicationReminderEmailProps {
   dose_unit: string
   due_datetime: string
   parent_name?: string
+  parent_timezone?: string
 }
 
 export const MedicationReminderEmail = ({
@@ -30,12 +31,14 @@ export const MedicationReminderEmail = ({
   dose_unit,
   due_datetime,
   parent_name,
+  parent_timezone = 'UTC',
 }: MedicationReminderEmailProps) => {
-  // Format the due time
+  // Format the due time with user's timezone
   const dueTime = new Date(due_datetime).toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
+    timeZone: parent_timezone,
   })
   
   const dueDate = new Date(due_datetime).toLocaleDateString('en-US', {
@@ -43,6 +46,7 @@ export const MedicationReminderEmail = ({
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: parent_timezone,
   })
 
   return (
