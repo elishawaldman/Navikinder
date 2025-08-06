@@ -18,6 +18,7 @@ import { PushNotificationTest } from '@/components/PushNotificationTest';
 import { ServiceWorkerLogs } from '@/components/ServiceWorkerLogs';
 import { QuickTestNotification } from '@/components/QuickTestNotification';
 import { DebugPushNotifications } from '@/components/DebugPushNotifications';
+import { IOSPushDebugger } from '@/components/IOSPushDebugger';
 import { useToast } from '@/hooks/use-toast';
 import { debugPushNotifications } from '@/lib/pushNotificationDebug';
 
@@ -400,6 +401,9 @@ const Settings = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* iOS-Specific Push Debugger - Always available for iOS troubleshooting */}
+            <IOSPushDebugger />
 
             {/* Advanced Debug Tools - Always available for mobile debugging */}
             <DebugPushNotifications />

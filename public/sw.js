@@ -129,84 +129,105 @@ self.addEventListener('fetch', (event) => {
 
 // CRITICAL iOS FIX: Push event handler
 self.addEventListener('push', (event) => {
-  console.log('🔔 Push event received');
+  console.log('🔔 Push event received at', new Date().toISOString());
   
-  const showNotificationPromise = (async () => {
+  // MUST wrap everything in event.waitUntil to prevent early termination
+  event.waitUntil((async () => {
     try {
-      let data = {};
+      let payload = {};
       
-      // Parse push data
+      // Parse push data - iOS may send it differently
       if (event.data) {
         try {
-          data = event.data.json();
-          console.log('📦 Push data parsed:', data);
+          payload = event.data.json();
+          console.log('📦 Parsed push payload:', payload);
         } catch (e) {
-          console.error('Failed to parse push data:', e);
-          data = { 
-            title: 'Medication Reminder',
-            body: event.data.text() || 'Time for medication'
-          };
+          console.log('⚠️ Failed to parse as JSON, trying text');
+          const text = event.data.text();
+          console.log('📝 Text data:', text);
+          
+          // Try to parse text as JSON one more time
+          try {
+            payload = JSON.parse(text);
+          } catch (e2) {
+            // Fallback to basic structure
+            payload = {
+              title: 'Medication Reminder',
+              body: text || 'Time for medication'
+            };
+          }
         }
+      } else {
+        console.log('⚠️ No data in push event');
+        payload = {
+          title: 'Medication Reminder',
+          body: 'You have a medication to take'
+        };
       }
       
-      const title = data.title || 'Medication Reminder';
+      // Extract title and body
+      const title = payload.title || 'Medication Reminder';
+      const body = payload.body || 'Time for your medication';
       
-      // iOS-optimized notification options
+      console.log('📢 Showing notification:', { title, body });
+      
+      // iOS-specific notification options
       const options = {
-        body: data.body || 'It\'s time for a medication dose',
+        body: body,
         icon: '/navikinder-logo-256.png',
         badge: '/navikinder-logo-256.png',
-        data: data.data || {},
-        // iOS specific options
-        tag: `med-${Date.now()}`, // Unique tag to prevent grouping
-        renotify: true, // Force notification even if tag exists
-        requireInteraction: false, // iOS doesn't support this well
-        silent: false, // Ensure sound/vibration
-        vibrate: [200, 100, 200], // Vibration pattern
-        timestamp: Date.now(),
-        actions: [] // iOS PWA doesn't support actions
+        data: payload.data || {},
+        tag: `push-${Date.now()}`, // Always unique to force display
+        renotify: true,
+        requireInteraction: false, // iOS doesn't support this
+        silent: false,
+        // iOS specific - ensure notification shows
+        dir: 'auto',
+        lang: 'en-US',
+        timestamp: Date.now()
       };
       
-      // Show notification with iOS-specific handling
+      // Show the notification
       await self.registration.showNotification(title, options);
       
-      console.log('✅ Notification displayed successfully');
-      sendLogToApp('success', '✅ Push notification shown', { title, body: options.body });
+      console.log('✅ Notification shown successfully');
       
-      // For iOS, also try to focus the app if it's open
-      const clients = await self.clients.matchAll({ 
-        type: 'window',
-        includeUncontrolled: true 
-      });
-      
-      if (clients.length > 0) {
-        // Send message to all open windows
-        clients.forEach(client => {
+      // Log to app if possible
+      try {
+        const allClients = await self.clients.matchAll({
+          includeUncontrolled: true,
+          type: 'window'
+        });
+        
+        allClients.forEach(client => {
           client.postMessage({
             type: 'PUSH_RECEIVED',
-            data: data
+            payload: payload,
+            timestamp: new Date().toISOString()
           });
         });
+        
+        console.log(`📤 Notified ${allClients.length} client(s)`);
+      } catch (clientError) {
+        console.error('Client notification error:', clientError);
       }
       
     } catch (error) {
-      console.error('❌ Error showing notification:', error);
-      sendLogToApp('error', '❌ Notification error', error.message);
+      console.error('❌ Push handler error:', error);
       
-      // Fallback notification
+      // Emergency fallback - show SOMETHING
       try {
-        await self.registration.showNotification('Medication Reminder', {
-          body: 'Check your medications',
+        await self.registration.showNotification('📱 Notification', {
+          body: 'You have a new notification',
           icon: '/navikinder-logo-256.png',
-          tag: `fallback-${Date.now()}`
+          tag: `error-${Date.now()}`
         });
+        console.log('✅ Fallback notification shown');
       } catch (fallbackError) {
-        console.error('❌ Fallback also failed:', fallbackError);
+        console.error('❌ Even fallback failed:', fallbackError);
       }
     }
-  })();
-  
-  event.waitUntil(showNotificationPromise);
+  })());
 });
 
 // Notification click handler
