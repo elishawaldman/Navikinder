@@ -17,6 +17,7 @@ import { TimezoneSelector } from '@/components/TimezoneSelector';
 import { PushNotificationTest } from '@/components/PushNotificationTest';
 import { ServiceWorkerLogs } from '@/components/ServiceWorkerLogs';
 import { QuickTestNotification } from '@/components/QuickTestNotification';
+import { DebugPushNotifications } from '@/components/DebugPushNotifications';
 import { useToast } from '@/hooks/use-toast';
 import { debugPushNotifications } from '@/lib/pushNotificationDebug';
 
@@ -399,6 +400,9 @@ const Settings = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Advanced Debug Tools - Always available for mobile debugging */}
+            <DebugPushNotifications />
 
             {/* Quick Test Notification - Always available for mobile debugging */}
             <QuickTestNotification />
