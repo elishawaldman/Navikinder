@@ -1,5 +1,5 @@
 // Service Worker for PWA and Push Notifications - iOS Fixed Version
-const CACHE_NAME = 'medication-tracker-v5'; // Bumped for iOS fixes
+const CACHE_NAME = 'medication-tracker-v6'; // Bumped for iOS payload fix
 
 console.log('🚀 Service Worker script loaded');
 
@@ -127,7 +127,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// CRITICAL iOS FIX: Push event handler
+// CRITICAL iOS FIX: Push event handler with proper nested payload handling
 self.addEventListener('push', (event) => {
   console.log('🔔 Push event received at', new Date().toISOString());
   
@@ -152,30 +152,36 @@ self.addEventListener('push', (event) => {
           } catch (e2) {
             // Fallback to basic structure
             payload = {
-              title: 'Medication Reminder',
-              body: text || 'Time for medication'
+              notification: {
+                title: 'Medication Reminder',
+                body: text || 'Time for medication'
+              }
             };
           }
         }
       } else {
         console.log('⚠️ No data in push event');
         payload = {
-          title: 'Medication Reminder',
-          body: 'You have a medication to take'
+          notification: {
+            title: 'Medication Reminder',
+            body: 'You have a medication to take'
+          }
         };
       }
       
-      // Extract title and body
-      const title = payload.title || 'Medication Reminder';
-      const body = payload.body || 'Time for your medication';
+      // Extract title and body from NESTED structure (matching Aleksandrs' working format)
+      const notification = payload.notification || {};
+      const title = notification.title || payload.title || 'Medication Reminder';
+      const body = notification.body || payload.body || 'Time for your medication';
       
       console.log('📢 Showing notification:', { title, body });
+      console.log('📦 Full payload structure:', payload);
       
       // iOS-specific notification options
       const options = {
         body: body,
-        icon: '/navikinder-logo-256.png',
-        badge: '/navikinder-logo-256.png',
+        icon: notification.icon || '/navikinder-logo-256.png',
+        badge: notification.badge || '/navikinder-logo-256.png',
         data: payload.data || {},
         tag: `push-${Date.now()}`, // Always unique to force display
         renotify: true,
