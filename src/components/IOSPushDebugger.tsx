@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, Download } from 'lucide-react';
 
 export const IOSPushDebugger = () => {
   const [logs, setLogs] = useState<Array<{
@@ -122,6 +122,61 @@ export const IOSPushDebugger = () => {
     }
   };
 
+  const exportSubscription = async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      
+      if (subscription) {
+        const subscriptionData = {
+          endpoint: subscription.endpoint,
+          keys: {
+            p256dh: btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')!))),
+            auth: btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')!)))
+          }
+        };
+        
+        // Copy to clipboard
+        await navigator.clipboard.writeText(JSON.stringify(subscriptionData, null, 2));
+        
+        // Also show in console for easy access
+        console.log('📋 Subscription Data for External Testing:', subscriptionData);
+        console.log('📋 Raw JSON (copy this):', JSON.stringify(subscriptionData, null, 2));
+        
+        setLogs(prev => [{
+          time: new Date().toLocaleTimeString(),
+          type: 'success',
+          message: '✅ Subscription data copied to clipboard and logged to console',
+          data: subscriptionData
+        }, ...prev]);
+        
+        // Also download as file for convenience
+        const blob = new Blob([JSON.stringify(subscriptionData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'push-subscription.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+      } else {
+        setLogs(prev => [{
+          time: new Date().toLocaleTimeString(),
+          type: 'error',
+          message: 'No push subscription found. Please enable notifications first.'
+        }, ...prev]);
+      }
+    } catch (error: any) {
+      setLogs(prev => [{
+        time: new Date().toLocaleTimeString(),
+        type: 'error',
+        message: `Export failed: ${error.message}`
+      }, ...prev]);
+    }
+  };
+
   return (
     <Card className="mt-4">
       <CardHeader>
@@ -130,7 +185,7 @@ export const IOSPushDebugger = () => {
           iOS Push Debugger
         </CardTitle>
         <CardDescription>
-          Monitor push notifications and service worker events
+          Monitor push notifications and export subscription for external testing
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -148,7 +203,11 @@ export const IOSPushDebugger = () => {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button onClick={exportSubscription} size="sm" variant="default" className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Export Sub
+          </Button>
           <Button onClick={testServiceWorker} size="sm" variant="outline">
             Test SW
           </Button>
@@ -202,14 +261,15 @@ export const IOSPushDebugger = () => {
 
         {/* Instructions */}
         <div className="text-xs text-muted-foreground border-t pt-3">
-          <p className="font-semibold mb-1">Troubleshooting iOS Push:</p>
+          <p className="font-semibold mb-1">🔍 Since external test app failed on your device:</p>
           <ol className="space-y-1 list-decimal list-inside">
-            <li>Ensure app is on home screen (PWA mode)</li>
-            <li>Close the app completely (swipe up)</li>
-            <li>Lock your phone screen</li>
-            <li>Send a test notification</li>
-            <li>Wait 5-10 seconds for delivery</li>
+            <li>Click "Export Sub" to copy your subscription data</li>
+            <li>Send the JSON data to the developer for external testing</li>
+            <li>Check Settings > Notifications > Navikinder (all options ON)</li>
+            <li>Try Settings > Focus > Do Not Disturb (turn OFF)</li>
+            <li>Try Settings > Screen Time > Content & Privacy Restrictions</li>
           </ol>
+          <p className="mt-2 font-semibold">💡 Issue is likely iOS device/account settings, not your code!</p>
         </div>
       </CardContent>
     </Card>
