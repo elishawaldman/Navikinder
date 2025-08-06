@@ -1,5 +1,5 @@
 // Service Worker for PWA and Push Notifications - iOS Fixed Version
-const CACHE_NAME = 'medication-tracker-v6'; // Bumped for iOS payload fix
+const CACHE_NAME = 'medication-tracker-v7'; // Bumped for real push debugging
 
 console.log('🚀 Service Worker script loaded');
 
@@ -130,6 +130,7 @@ self.addEventListener('fetch', (event) => {
 // CRITICAL iOS FIX: Push event handler with proper nested payload handling
 self.addEventListener('push', (event) => {
   console.log('🔔 Push event received at', new Date().toISOString());
+  sendLogToApp('info', '🔔 REAL PUSH EVENT RECEIVED at ' + new Date().toISOString());
   
   // MUST wrap everything in event.waitUntil to prevent early termination
   event.waitUntil((async () => {
@@ -176,6 +177,7 @@ self.addEventListener('push', (event) => {
       
       console.log('📢 Showing notification:', { title, body });
       console.log('📦 Full payload structure:', payload);
+      sendLogToApp('info', `📢 About to show notification: ${title} - ${body}`);
       
       // iOS-specific notification options
       const options = {
@@ -197,6 +199,7 @@ self.addEventListener('push', (event) => {
       await self.registration.showNotification(title, options);
       
       console.log('✅ Notification shown successfully');
+      sendLogToApp('success', '✅ Notification shown successfully via showNotification()');
       
       // Log to app if possible
       try {

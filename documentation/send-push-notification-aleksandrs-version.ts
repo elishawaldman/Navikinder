@@ -1,13 +1,11 @@
 // supabase/functions/send-push-notification/index.ts
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.53.0";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
-
 interface PushNotificationRequest {
   dose_instance_id: string;
   due_datetime: string;
@@ -18,7 +16,6 @@ interface PushNotificationRequest {
   parent_email: string;
   parent_name: string;
 }
-
 // CRITICAL: Manual web push implementation for iOS compatibility
 async function sendWebPushNotification(
   subscription: any,
@@ -116,28 +113,22 @@ async function sendWebPushNotification(
     };
   }
 }
-
 const handler = async (req: Request): Promise<Response> => {
   console.log("🚀 Push notification function invoked at", new Date().toISOString());
-
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
-
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY")!;
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY")!;
     const vapidEmail = Deno.env.get("VAPID_EMAIL") || "support@navikinder.com";
-
     console.log("📧 VAPID configured for:", vapidEmail);
-
     const supabase = createClient(supabaseUrl, supabaseKey);
     const requestData: PushNotificationRequest = await req.json();
     
     console.log(`📱 Processing: ${requestData.child_name}'s ${requestData.medication_name}`);
-
     // Find user
     let userId: string | null = null;
     
@@ -146,7 +137,6 @@ const handler = async (req: Request): Promise<Response> => {
       .select("id")
       .eq("email", requestData.parent_email)
       .single();
-
     if (userProfile) {
       userId = userProfile.id;
     } else {
@@ -157,27 +147,23 @@ const handler = async (req: Request): Promise<Response> => {
       );
       userId = user?.id || null;
     }
-
     if (!userId) {
       return new Response(
         JSON.stringify({ error: "User not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
     // Get subscriptions
     const { data: subscriptions } = await supabase
       .from("push_subscriptions")
       .select("*")
       .eq("user_id", userId);
-
     if (!subscriptions?.length) {
       return new Response(
         JSON.stringify({ message: "No subscriptions found" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
     console.log(`📲 Found ${subscriptions.length} subscription(s)`);
 
     // Create iOS-optimized payload
@@ -198,8 +184,24 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     const payloadString = JSON.stringify(notificationPayload);
-    console.log('📦 Payload:', payloadString);
 
+    
+          
+            
+    
+
+          
+          Expand Down
+          
+            
+    
+
+          
+          Expand Up
+    
+    @@ -252,4 +252,4 @@ const handler = async (req: Request): Promise<Response> => {
+  
+    console.log('📦 Payload:', payloadString);
     // Send to all subscriptions
     const results = await Promise.all(
       subscriptions.map(sub => 
@@ -212,16 +214,13 @@ const handler = async (req: Request): Promise<Response> => {
         )
       )
     );
-
     const successCount = results.filter(r => r.success).length;
     const failureDetails = results.filter(r => !r.success);
-
     console.log(`📊 Results: ${successCount}/${results.length} successful`);
     
     if (failureDetails.length > 0) {
       console.log('❌ Failures:', JSON.stringify(failureDetails, null, 2));
     }
-
     // Clean up failed subscriptions
     for (let i = 0; i < results.length; i++) {
       if (!results[i].success && results[i].statusCode === 410) {
@@ -232,7 +231,6 @@ const handler = async (req: Request): Promise<Response> => {
         console.log('🗑️ Removed expired subscription');
       }
     }
-
     return new Response(
       JSON.stringify({
         message: "Push notifications processed",
@@ -242,7 +240,6 @@ const handler = async (req: Request): Promise<Response> => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error: any) {
     console.error("❌ Function error:", error);
     return new Response(
