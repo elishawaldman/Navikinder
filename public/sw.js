@@ -75,11 +75,19 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('message', (event) => {
   remoteLog('📨 Message received', { type: event.data?.type });
   
+  // Add version check
+  if (event.data && event.data.type === 'GET_VERSION') {
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ version: 'v8-debug' });
+    }
+    return;
+  }
+  
   if (event.data && event.data.type === 'TEST_NOTIFICATION') {
     remoteLog('🧪 Test notification requested');
     event.waitUntil(
-      self.registration.showNotification('Test Notification', {
-        body: 'This is a test notification from your app',
+      self.registration.showNotification('Test Notification v8', {
+        body: 'This is from service worker version 8 with debug',
         icon: '/navikinder-logo-256.png',
         badge: '/navikinder-logo-256.png',
         tag: 'test-' + Date.now(),

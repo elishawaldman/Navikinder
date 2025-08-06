@@ -16,6 +16,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { TimezoneSelector } from '@/components/TimezoneSelector';
 import { PushNotificationTest } from '@/components/PushNotificationTest';
 import { ServiceWorkerLogs } from '@/components/ServiceWorkerLogs';
+import { ServiceWorkerDebug } from '@/components/ServiceWorkerDebug';
 import { QuickTestNotification } from '@/components/QuickTestNotification';
 import { DebugPushNotifications } from '@/components/DebugPushNotifications';
 import { IOSPushDebugger } from '@/components/IOSPushDebugger';
@@ -410,6 +411,9 @@ const Settings = () => {
 
             {/* Quick Test Notification - Always available for mobile debugging */}
             <QuickTestNotification />
+
+            {/* Service Worker Debug - Always available for mobile debugging */}
+            <ServiceWorkerDebug />
 
             {/* Service Worker Logs - Always available for mobile debugging */}
             <ServiceWorkerLogs />

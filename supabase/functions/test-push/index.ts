@@ -1,5 +1,5 @@
-// test-push.ts - Deploy this as a separate edge function for testing
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.53.0";
 import webpush from "npm:web-push@3.6.7";
 
 const corsHeaders = {
@@ -8,81 +8,139 @@ const corsHeaders = {
 };
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("🧪 TEST PUSH Function invoked at", new Date().toISOString());
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
   
   try {
-    console.log("🧪 TEST PUSH - Matching Aleksandrs' exact format");
-    
-    // Get YOUR VAPID keys from environment
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY")!;
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY")!;
+    const vapidEmail = Deno.env.get("VAPID_EMAIL") || "support@navikinder.com";
     
-    // Set VAPID details - exactly like Aleksandrs' send.js
+    console.log("🔑 Using VAPID public key:", vapidPublicKey.substring(0, 20) + "...");
+    
+    // Set VAPID details
     webpush.setVapidDetails(
-      'mailto:support@navikinder.com',
+      vapidEmail.startsWith('mailto:') ? vapidEmail : `mailto:${vapidEmail}`,
       vapidPublicKey,
       vapidPrivateKey
     );
     
-    // Your new subscription from database
-    const subscription = {
-      endpoint: "https://web.push.apple.com/QBKxtmPq813p2kDfHbxwqtmp34t1ETsTZz4LJkP5G2YtPqpnqhHe9nxfo5o0g3AVZIFLo0epGQRWlVvumK597atfH4IO3NaRgd6tDRvq71I3Q9glj8Z4VicCcA7PXrWix7LDshInOA7rrbHJ1sb0Igu_HQ8kp6zTDSHxV_e97-U",
-      keys: {
-        // Remove the = padding to make URL-safe
-        p256dh: "BJxK5NSaRxp3DQeNQI17xoBClgW3ttRjvIE/dHwkNJyPNZ63m8wDg+7FjoLztPIy4Qb6vs7TJDwcTY6mHeTcSmQ",
-        auth: "2AQgZgheEk7fvteskCilDw"
-      }
-    };
+    const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Payload - EXACTLY like Aleksandrs' format
+    // Get the most recent push subscription from the database
+    const { data: subscriptions, error } = await supabase
+      .from("push_subscriptions")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    
+    if (error) {
+      console.error("❌ Database error:", error);
+      throw error;
+    }
+    
+    if (!subscriptions || subscriptions.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "No push subscriptions found in database. Please subscribe first." 
+        }),
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
+    const subscription = subscriptions[0];
+    console.log("📱 Using subscription:", {
+      id: subscription.id,
+      endpoint: subscription.endpoint.substring(0, 50) + "...",
+      is_ios: subscription.is_ios,
+      created_at: subscription.created_at
+    });
+    
+    // Create test payload - exactly like Aleksandrs' working format
     const payload = JSON.stringify({
       notification: {
-        title: '🔔 Test Push',
-        body: 'This is a test from YOUR app with YOUR keys',
+        title: '🧪 Test Push - Direct',
+        body: 'This is a test from your test-push function',
         icon: '/navikinder-logo-256.png',
         badge: '/navikinder-logo-256.png',
         sound: 'default'
       },
       data: {
-        tag: 'test-' + Date.now()
+        test: true,
+        timestamp: Date.now()
       }
     });
     
-    console.log('📤 Sending notification...');
-    console.log('Subscription:', JSON.stringify(subscription, null, 2));
-    console.log('Payload:', payload);
+    console.log("📦 Sending payload:", payload);
     
-    try {
-      // Send EXACTLY like Aleksandrs - NO OPTIONS
-      await webpush.sendNotification(subscription, payload);
-      
-      console.log('✅ Push sent successfully');
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "Push sent successfully"
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    } catch (error: any) {
-      console.error('❌ Send failed:', error);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: error.message,
-          statusCode: error.statusCode,
-          body: error.body 
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-  } catch (error: any) {
-    console.error("❌ Function error:", error);
+    // Send push notification - NO OPTIONS (like Aleksandrs' working version)
+    await webpush.sendNotification(
+      {
+        endpoint: subscription.endpoint,
+        keys: {
+          p256dh: subscription.p256dh,
+          auth: subscription.auth
+        }
+      },
+      payload
+      // NO OPTIONS - this is critical for iOS compatibility
+    );
+    
+    console.log("✅ Push notification sent successfully");
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        success: true,
+        message: "Test push notification sent successfully",
+        subscription: {
+          endpoint: subscription.endpoint.substring(0, 50) + "...",
+          is_ios: subscription.is_ios
+        },
+        payload: JSON.parse(payload)
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
+    );
+    
+  } catch (error: any) {
+    console.error("❌ Test push error:", error);
+    
+    let errorMessage = error.message;
+    let statusCode = 500;
+    
+    // Handle specific errors
+    if (error.body && error.body.includes('VapidPkHashMismatch')) {
+      errorMessage = "VAPID key mismatch - subscription was created with different keys";
+      statusCode = 400;
+    } else if (error.statusCode === 410) {
+      errorMessage = "Subscription has expired";
+      statusCode = 410;
+    }
+    
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: errorMessage,
+        details: {
+          statusCode: error.statusCode,
+          body: error.body
+        }
+      }),
+      { 
+        status: statusCode, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
     );
   }
 };
