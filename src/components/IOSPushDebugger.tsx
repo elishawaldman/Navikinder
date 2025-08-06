@@ -265,9 +265,9 @@ export const IOSPushDebugger = () => {
           <ol className="space-y-1 list-decimal list-inside">
             <li>Click "Export Sub" to copy your subscription data</li>
             <li>Send the JSON data to the developer for external testing</li>
-            <li>Check Settings > Notifications > Navikinder (all options ON)</li>
-            <li>Try Settings > Focus > Do Not Disturb (turn OFF)</li>
-            <li>Try Settings > Screen Time > Content & Privacy Restrictions</li>
+            <li>Check Settings &gt; Notifications &gt; Navikinder (all options ON)</li>
+            <li>Try Settings &gt; Focus &gt; Do Not Disturb (turn OFF)</li>
+            <li>Try Settings &gt; Screen Time &gt; Content &amp; Privacy Restrictions</li>
           </ol>
           <p className="mt-2 font-semibold">💡 Issue is likely iOS device/account settings, not your code!</p>
         </div>
