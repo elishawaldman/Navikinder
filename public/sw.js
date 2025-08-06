@@ -1,36 +1,32 @@
-// Service Worker for PWA and Push Notifications - iOS Fixed Version
-const CACHE_NAME = 'medication-tracker-v7'; // Bumped for real push debugging
+// sw.js - Service Worker with remote debug logging
+const CACHE_NAME = 'medication-tracker-v8'; // Bump version to force update
+const DEBUG_ENDPOINT = 'https://nqrtkgxqgenflhpijpxa.supabase.co/functions/v1/debug-log';
 
-console.log('🚀 Service Worker script loaded');
-
-// Helper function to send logs to main app
-const sendLogToApp = async (logType, message, data = null) => {
+// Remote logging function
+async function remoteLog(message, data = {}) {
+  const logData = {
+    message,
+    data,
+    timestamp: new Date().toISOString(),
+    userAgent: self.navigator.userAgent
+  };
+  
+  console.log('[SW]', message, data);
+  
+  // Try to send log to server
   try {
-    const clients = await self.clients.matchAll({ includeUncontrolled: true });
-    console.log(`[SW] Found ${clients.length} clients to send log to`);
-    
-    const logMessage = {
-      type: 'SW_LOG',
-      logType,
-      message,
-      data,
-      timestamp: new Date().toISOString()
-    };
-    
-    clients.forEach((client, index) => {
-      try {
-        console.log(`[SW] Sending log to client ${index + 1}:`, logMessage);
-        client.postMessage(logMessage);
-      } catch (clientError) {
-        console.error(`[SW] Failed to send to client ${index + 1}:`, clientError);
-      }
-    });
-    
-    console.log(`[SW] ${message}`, data || '');
-  } catch (error) {
-    console.error('[SW] Failed to send log to app:', error);
+    await fetch(DEBUG_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(logData)
+    }).catch(() => {}); // Ignore errors
+  } catch (e) {
+    // Silently fail
   }
-};
+}
+
+// Log SW start
+remoteLog('🚀 Service Worker loaded - Version 8');
 
 const urlsToCache = [
   '/',
@@ -40,25 +36,32 @@ const urlsToCache = [
 
 // Install event
 self.addEventListener('install', (event) => {
+  remoteLog('📦 Install event triggered');
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+      .then((cache) => {
+        remoteLog('✅ Cache opened');
+        return cache.addAll(urlsToCache);
+      })
+      .then(() => remoteLog('✅ URLs cached'))
       .catch((error) => {
-        console.error('Cache installation failed:', error);
+        remoteLog('❌ Cache installation failed', { error: error.message });
       })
   );
 });
 
 // Activate event
 self.addEventListener('activate', (event) => {
-  console.log('🔄 Service Worker activated');
+  remoteLog('🔄 Service Worker activating');
   event.waitUntil(
     self.clients.claim().then(() => {
+      remoteLog('✅ Clients claimed');
       return caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME) {
+              remoteLog(`🗑️ Deleting old cache: ${cacheName}`);
               return caches.delete(cacheName);
             }
           })
@@ -70,56 +73,30 @@ self.addEventListener('activate', (event) => {
 
 // Message handler
 self.addEventListener('message', (event) => {
-  console.log('📨 Service Worker received message:', event.data);
+  remoteLog('📨 Message received', { type: event.data?.type });
   
-  if (event.data && event.data.type === 'TEST_CONNECTION') {
-    sendLogToApp('success', '✅ Service Worker connection verified');
-  } else if (event.data && event.data.type === 'TEST_NOTIFICATION') {
-    // Test notification from main app
+  if (event.data && event.data.type === 'TEST_NOTIFICATION') {
+    remoteLog('🧪 Test notification requested');
     event.waitUntil(
       self.registration.showNotification('Test Notification', {
         body: 'This is a test notification from your app',
         icon: '/navikinder-logo-256.png',
         badge: '/navikinder-logo-256.png',
-        tag: 'test-notification-' + Date.now(),
+        tag: 'test-' + Date.now(),
         requireInteraction: false,
-        silent: false,
-        renotify: true,
-        vibrate: [200, 100, 200]
+        silent: false
       }).then(() => {
-        sendLogToApp('success', '✅ Test notification displayed');
+        remoteLog('✅ Test notification shown');
       }).catch((error) => {
-        sendLogToApp('error', '❌ Test notification failed', error.message);
-      })
-    );
-  } else if (event.data && event.data.type === 'SIMULATE_PUSH') {
-    // Simulate a push event locally
-    const pushData = event.data.pushData || {
-      title: 'Simulated Push',
-      body: 'This is a simulated push notification'
-    };
-    
-    event.waitUntil(
-      self.registration.showNotification(pushData.title, {
-        body: pushData.body,
-        icon: '/navikinder-logo-256.png',
-        badge: '/navikinder-logo-256.png',
-        data: pushData.data || {},
-        tag: 'simulate-' + Date.now(),
-        requireInteraction: false,
-        renotify: true,
-        vibrate: [200, 100, 200]
-      }).then(() => {
-        sendLogToApp('success', '✅ Simulated push notification displayed');
-      }).catch((error) => {
-        sendLogToApp('error', '❌ Simulated push failed', error.message);
+        remoteLog('❌ Test notification failed', { error: error.message });
       })
     );
   }
 });
 
-// Fetch event
+// Fetch event - simplified
 self.addEventListener('fetch', (event) => {
+  // Don't log fetch events (too noisy)
   event.respondWith(
     caches.match(event.request)
       .then((response) => response || fetch(event.request))
@@ -127,31 +104,26 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// CRITICAL iOS FIX: Push event handler with proper nested payload handling
+// CRITICAL: Push event handler
 self.addEventListener('push', (event) => {
-  console.log('🔔 Push event received at', new Date().toISOString());
-  sendLogToApp('info', '🔔 REAL PUSH EVENT RECEIVED at ' + new Date().toISOString());
+  const timestamp = new Date().toISOString();
+  remoteLog('🔔 PUSH EVENT RECEIVED', { timestamp });
   
-  // MUST wrap everything in event.waitUntil to prevent early termination
   event.waitUntil((async () => {
     try {
       let payload = {};
       
-      // Parse push data - iOS may send it differently
+      // Parse push data
       if (event.data) {
         try {
           payload = event.data.json();
-          console.log('📦 Parsed push payload:', payload);
+          remoteLog('📦 Parsed JSON payload', payload);
         } catch (e) {
-          console.log('⚠️ Failed to parse as JSON, trying text');
           const text = event.data.text();
-          console.log('📝 Text data:', text);
-          
-          // Try to parse text as JSON one more time
+          remoteLog('📝 Text payload', { text });
           try {
             payload = JSON.parse(text);
           } catch (e2) {
-            // Fallback to basic structure
             payload = {
               notification: {
                 title: 'Medication Reminder',
@@ -161,7 +133,7 @@ self.addEventListener('push', (event) => {
           }
         }
       } else {
-        console.log('⚠️ No data in push event');
+        remoteLog('⚠️ No data in push event');
         payload = {
           notification: {
             title: 'Medication Reminder',
@@ -170,70 +142,44 @@ self.addEventListener('push', (event) => {
         };
       }
       
-      // Extract title and body from NESTED structure (matching Aleksandrs' working format)
+      // Extract notification data
       const notification = payload.notification || {};
-      const title = notification.title || payload.title || 'Medication Reminder';
-      const body = notification.body || payload.body || 'Time for your medication';
+      const title = notification.title || 'Medication Reminder';
+      const body = notification.body || 'Time for your medication';
       
-      console.log('📢 Showing notification:', { title, body });
-      console.log('📦 Full payload structure:', payload);
-      sendLogToApp('info', `📢 About to show notification: ${title} - ${body}`);
+      remoteLog('📢 Attempting to show notification', { title, body });
       
-      // iOS-specific notification options
-      const options = {
+      // Show notification
+      await self.registration.showNotification(title, {
         body: body,
         icon: notification.icon || '/navikinder-logo-256.png',
         badge: notification.badge || '/navikinder-logo-256.png',
         data: payload.data || {},
-        tag: `push-${Date.now()}`, // Always unique to force display
+        tag: `push-${Date.now()}`,
         renotify: true,
-        requireInteraction: false, // iOS doesn't support this
-        silent: false,
-        // iOS specific - ensure notification shows
-        dir: 'auto',
-        lang: 'en-US',
-        timestamp: Date.now()
-      };
+        silent: false
+      });
       
-      // Show the notification
-      await self.registration.showNotification(title, options);
-      
-      console.log('✅ Notification shown successfully');
-      sendLogToApp('success', '✅ Notification shown successfully via showNotification()');
-      
-      // Log to app if possible
-      try {
-        const allClients = await self.clients.matchAll({
-          includeUncontrolled: true,
-          type: 'window'
-        });
-        
-        allClients.forEach(client => {
-          client.postMessage({
-            type: 'PUSH_RECEIVED',
-            payload: payload,
-            timestamp: new Date().toISOString()
-          });
-        });
-        
-        console.log(`📤 Notified ${allClients.length} client(s)`);
-      } catch (clientError) {
-        console.error('Client notification error:', clientError);
-      }
+      remoteLog('✅ Notification display called successfully');
       
     } catch (error) {
-      console.error('❌ Push handler error:', error);
+      remoteLog('❌ Push handler error', { 
+        error: error.message,
+        stack: error.stack 
+      });
       
-      // Emergency fallback - show SOMETHING
+      // Emergency fallback
       try {
         await self.registration.showNotification('📱 Notification', {
           body: 'You have a new notification',
           icon: '/navikinder-logo-256.png',
           tag: `error-${Date.now()}`
         });
-        console.log('✅ Fallback notification shown');
+        remoteLog('✅ Fallback notification shown');
       } catch (fallbackError) {
-        console.error('❌ Even fallback failed:', fallbackError);
+        remoteLog('❌ Fallback also failed', { 
+          error: fallbackError.message 
+        });
       }
     }
   })());
@@ -241,6 +187,7 @@ self.addEventListener('push', (event) => {
 
 // Notification click handler
 self.addEventListener('notificationclick', (event) => {
+  remoteLog('👆 Notification clicked');
   event.notification.close();
   
   event.waitUntil(
@@ -248,7 +195,6 @@ self.addEventListener('notificationclick', (event) => {
       type: 'window',
       includeUncontrolled: true 
     }).then((clientList) => {
-      // Focus existing window or open new one
       const client = clientList.find(c => c.url.includes(self.location.origin));
       if (client) {
         return client.focus();
@@ -258,7 +204,4 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// iOS-specific: Handle notification close
-self.addEventListener('notificationclose', (event) => {
-  console.log('Notification was closed', event);
-});
+remoteLog('📍 Service Worker script fully loaded');
