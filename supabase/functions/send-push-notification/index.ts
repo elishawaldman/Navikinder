@@ -1,6 +1,6 @@
-// supabase/functions/send-push-notification/index.ts
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.53.0";
+import webpush from "npm:web-push@3.6.7"; // Use web-push directly
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +19,6 @@ interface PushNotificationRequest {
   parent_name: string;
 }
 
-// CRITICAL: Manual web push implementation for iOS compatibility
 async function sendWebPushNotification(
   subscription: any,
   payload: string,
@@ -27,63 +26,35 @@ async function sendWebPushNotification(
   vapidPrivateKey: string,
   vapidEmail: string
 ) {
-  // Import required crypto libraries
-  const { createSign, createHash, randomBytes } = await import("node:crypto");
-  const { URL } = await import("node:url");
-  
-  const endpoint = new URL(subscription.endpoint);
-  const isApplePush = endpoint.hostname.includes('push.apple.com');
-  
+  const endpointUrl = new URL(subscription.endpoint);
+  const isApplePush = endpointUrl.hostname.includes('push.apple.com');
+
   console.log(`📱 Sending to ${isApplePush ? 'Apple' : 'FCM'} push service`);
-  
-  // Generate JWT for VAPID
-  const header = {
-    typ: "JWT",
-    alg: "ES256"
-  };
-  
-  const now = Math.floor(Date.now() / 1000);
-  const claims = {
-    aud: `${endpoint.protocol}//${endpoint.hostname}`,
-    exp: now + 12 * 3600, // 12 hours for iOS
-    sub: vapidEmail.startsWith('mailto:') ? vapidEmail : `mailto:${vapidEmail}`
-  };
-  
-  const jwtHeader = btoa(JSON.stringify(header)).replace(/=/g, '');
-  const jwtPayload = btoa(JSON.stringify(claims)).replace(/=/g, '');
-  const unsignedToken = `${jwtHeader}.${jwtPayload}`;
-  
-  // For iOS, we need to use the web-push library properly
-  // Import web-push dynamically
-  const webpush = await import("npm:web-push@3.6.7");
-  
-  // Set VAPID details with proper formatting
+
+  // Set VAPID details using the web-push library
   webpush.setVapidDetails(
-    claims.sub,
+    vapidEmail.startsWith('mailto:') ? vapidEmail : `mailto:${vapidEmail}`,
     vapidPublicKey,
     vapidPrivateKey
   );
-  
+
   // iOS-specific options
-  const options = {
+  const options: webpush.RequestOptions = {
     TTL: 2419200, // 28 days - maximum for iOS
     urgency: 'high',
-    topic: 'com.navikinder.app' // Your app identifier
   };
-  
+
   // Add iOS-specific headers if it's an Apple endpoint
   if (isApplePush) {
-    Object.assign(options, {
-      headers: {
-        'apns-priority': '10',
-        'apns-push-type': 'alert',
-        'apns-expiration': '0' // Deliver immediately
-      }
-    });
+    options.headers = {
+      'apns-priority': '10',
+      'apns-push-type': 'alert',
+      'apns-expiration': '0', // Deliver immediately
+      'apns-topic': 'com.navikinder.app' // CRITICAL for iOS PWAs
+    };
   }
-  
+
   try {
-    // Use web-push to send the notification
     await webpush.sendNotification(
       {
         endpoint: subscription.endpoint,
@@ -95,69 +66,62 @@ async function sendWebPushNotification(
       payload,
       options
     );
-    
+
     console.log(`✅ Successfully sent to ${isApplePush ? 'Apple' : 'FCM'}`);
-    return { success: true, platform: isApplePush ? 'iOS' : 'Web' };
+    return { success: true, platform: isApplePush ? 'iOS' : 'Web', endpoint: subscription.endpoint };
   } catch (error: any) {
     console.error(`❌ Failed to send push:`, error);
-    
-    // Log detailed error info for iOS debugging
+
     if (error.statusCode) {
       console.error(`Status Code: ${error.statusCode}`);
       console.error(`Headers:`, error.headers);
       console.error(`Body:`, error.body);
     }
-    
-    return { 
-      success: false, 
+
+    return {
+      success: false,
       error: error.message,
       statusCode: error.statusCode,
-      platform: isApplePush ? 'iOS' : 'Web'
+      platform: isApplePush ? 'iOS' : 'Web',
+      endpoint: subscription.endpoint
     };
   }
 }
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("🚀 Push notification function invoked at", new Date().toISOString());
-
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
-
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY")!;
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY")!;
     const vapidEmail = Deno.env.get("VAPID_EMAIL") || "support@navikinder.com";
-
     console.log("📧 VAPID configured for:", vapidEmail);
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     const requestData: PushNotificationRequest = await req.json();
-    
+
     console.log(`📱 Processing: ${requestData.child_name}'s ${requestData.medication_name}`);
 
-    // Find user
     let userId: string | null = null;
-    
+
     const { data: userProfile } = await supabase
       .from("profiles")
       .select("id")
       .eq("email", requestData.parent_email)
       .single();
-
     if (userProfile) {
       userId = userProfile.id;
     } else {
-      // Try auth users
       const { data: authData } = await supabase.auth.admin.listUsers();
-      const user = authData?.users?.find(u => 
+      const user = authData?.users?.find(u =>
         u.email?.toLowerCase() === requestData.parent_email.toLowerCase()
       );
       userId = user?.id || null;
     }
-
     if (!userId) {
       return new Response(
         JSON.stringify({ error: "User not found" }),
@@ -165,7 +129,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get subscriptions
     const { data: subscriptions } = await supabase
       .from("push_subscriptions")
       .select("*")
@@ -198,11 +161,11 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     const payloadString = JSON.stringify(notificationPayload);
-    console.log('📦 Payload:', payloadString);
 
+    console.log('📦 Payload:', payloadString);
     // Send to all subscriptions
     const results = await Promise.all(
-      subscriptions.map(sub => 
+      subscriptions.map(sub =>
         sendWebPushNotification(
           sub,
           payloadString,
@@ -212,16 +175,13 @@ const handler = async (req: Request): Promise<Response> => {
         )
       )
     );
-
     const successCount = results.filter(r => r.success).length;
     const failureDetails = results.filter(r => !r.success);
-
     console.log(`📊 Results: ${successCount}/${results.length} successful`);
-    
+
     if (failureDetails.length > 0) {
       console.log('❌ Failures:', JSON.stringify(failureDetails, null, 2));
     }
-
     // Clean up failed subscriptions
     for (let i = 0; i < results.length; i++) {
       if (!results[i].success && results[i].statusCode === 410) {
@@ -232,7 +192,6 @@ const handler = async (req: Request): Promise<Response> => {
         console.log('🗑️ Removed expired subscription');
       }
     }
-
     return new Response(
       JSON.stringify({
         message: "Push notifications processed",
@@ -242,7 +201,6 @@ const handler = async (req: Request): Promise<Response> => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error: any) {
     console.error("❌ Function error:", error);
     return new Response(
