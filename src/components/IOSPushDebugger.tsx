@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, XCircle, Download } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, Download, Copy } from 'lucide-react';
 
 export const IOSPushDebugger = () => {
   const [logs, setLogs] = useState<Array<{
@@ -14,6 +14,7 @@ export const IOSPushDebugger = () => {
   }>>([]);
   const [swStatus, setSwStatus] = useState<'checking' | 'active' | 'inactive'>('checking');
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
+  const [subscriptionData, setSubscriptionData] = useState<any>(null);
 
   useEffect(() => {
     checkStatus();
@@ -128,7 +129,7 @@ export const IOSPushDebugger = () => {
       const subscription = await registration.pushManager.getSubscription();
       
       if (subscription) {
-        const subscriptionData = {
+        const subscriptionJson = {
           endpoint: subscription.endpoint,
           keys: {
             p256dh: btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')!))),
@@ -136,30 +137,29 @@ export const IOSPushDebugger = () => {
           }
         };
         
-        // Copy to clipboard
-        await navigator.clipboard.writeText(JSON.stringify(subscriptionData, null, 2));
+        setSubscriptionData(subscriptionJson);
         
-        // Also show in console for easy access
-        console.log('📋 Subscription Data for External Testing:', subscriptionData);
-        console.log('📋 Raw JSON (copy this):', JSON.stringify(subscriptionData, null, 2));
+        // Log to console - this always works
+        console.log('📋 Subscription Data for External Testing:', subscriptionJson);
+        console.log('📋 Raw JSON (copy this):', JSON.stringify(subscriptionJson, null, 2));
         
-        setLogs(prev => [{
-          time: new Date().toLocaleTimeString(),
-          type: 'success',
-          message: '✅ Subscription data copied to clipboard and logged to console',
-          data: subscriptionData
-        }, ...prev]);
-        
-        // Also download as file for convenience
-        const blob = new Blob([JSON.stringify(subscriptionData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'push-subscription.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // Try clipboard - but don't fail if it doesn't work
+        try {
+          await navigator.clipboard.writeText(JSON.stringify(subscriptionJson, null, 2));
+          setLogs(prev => [{
+            time: new Date().toLocaleTimeString(),
+            type: 'success',
+            message: '✅ Subscription data copied to clipboard and displayed below',
+            data: subscriptionJson
+          }, ...prev]);
+        } catch (clipboardError) {
+          setLogs(prev => [{
+            time: new Date().toLocaleTimeString(),
+            type: 'info',
+            message: '📋 Subscription data displayed below (clipboard not available in iOS PWA)',
+            data: subscriptionJson
+          }, ...prev]);
+        }
         
       } else {
         setLogs(prev => [{
@@ -173,6 +173,40 @@ export const IOSPushDebugger = () => {
         time: new Date().toLocaleTimeString(),
         type: 'error',
         message: `Export failed: ${error.message}`
+      }, ...prev]);
+    }
+  };
+
+  const copyToClipboardFallback = (text: string) => {
+    // Create a text area element for iOS
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        setLogs(prev => [{
+          time: new Date().toLocaleTimeString(),
+          type: 'success',
+          message: '✅ Copied to clipboard (fallback method)'
+        }, ...prev]);
+      } else {
+        throw new Error('Copy failed');
+      }
+    } catch (err) {
+      document.body.removeChild(textArea);
+      setLogs(prev => [{
+        time: new Date().toLocaleTimeString(),
+        type: 'warning',
+        message: '⚠️ Please manually copy the JSON from the display below'
       }, ...prev]);
     }
   };
@@ -222,6 +256,27 @@ export const IOSPushDebugger = () => {
           </Button>
         </div>
 
+        {/* Subscription Data Display */}
+        {subscriptionData && (
+          <div className="border rounded-lg p-3 bg-muted">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold text-sm">📋 Subscription Data (Send this to developer):</h4>
+              <Button 
+                onClick={() => copyToClipboardFallback(JSON.stringify(subscriptionData, null, 2))}
+                size="sm" 
+                variant="outline"
+                className="flex items-center gap-1"
+              >
+                <Copy className="h-3 w-3" />
+                Copy
+              </Button>
+            </div>
+            <pre className="text-xs bg-background p-2 rounded border overflow-x-auto whitespace-pre-wrap break-all">
+              {JSON.stringify(subscriptionData, null, 2)}
+            </pre>
+          </div>
+        )}
+
         {/* Logs */}
         <div className="border rounded-lg max-h-64 overflow-y-auto">
           {logs.length === 0 ? (
@@ -263,7 +318,8 @@ export const IOSPushDebugger = () => {
         <div className="text-xs text-muted-foreground border-t pt-3">
           <p className="font-semibold mb-1">🔍 Since external test app failed on your device:</p>
           <ol className="space-y-1 list-decimal list-inside">
-            <li>Click "Export Sub" to copy your subscription data</li>
+            <li>Click "Export Sub" to get your subscription data</li>
+            <li>Copy the JSON from the display above (or check browser console)</li>
             <li>Send the JSON data to the developer for external testing</li>
             <li>Check Settings &gt; Notifications &gt; Navikinder (all options ON)</li>
             <li>Try Settings &gt; Focus &gt; Do Not Disturb (turn OFF)</li>
