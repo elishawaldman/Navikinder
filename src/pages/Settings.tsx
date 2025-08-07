@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Heart, Shield, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -14,14 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { TimezoneSelector } from '@/components/TimezoneSelector';
-import { PushNotificationTest } from '@/components/PushNotificationTest';
-import { ServiceWorkerLogs } from '@/components/ServiceWorkerLogs';
-import { ServiceWorkerDebug } from '@/components/ServiceWorkerDebug';
-import { QuickTestNotification } from '@/components/QuickTestNotification';
-import { DebugPushNotifications } from '@/components/DebugPushNotifications';
-import { IOSPushDebugger } from '@/components/IOSPushDebugger';
 import { useToast } from '@/hooks/use-toast';
-import { debugPushNotifications } from '@/lib/pushNotificationDebug';
 
 interface NotificationSettings {
   email_notifications_enabled: boolean;
@@ -34,6 +28,7 @@ const Settings = () => {
   const { isSupported: isPushSupported, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   
   const [displayName, setDisplayName] = useState('');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
@@ -44,41 +39,8 @@ const Settings = () => {
   });
   const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-  const [debugResults, setDebugResults] = useState<any>(null);
-  const [showDebugResults, setShowDebugResults] = useState(false);
 
-  // Debug function for push notifications
-  const runPushDebug = async () => {
-    try {
-      setShowDebugResults(false);
-      const results = await debugPushNotifications();
-      setDebugResults(results);
-      setShowDebugResults(true);
-      
-      // Summary for quick viewing
-      const summary = [
-        `Device: ${results.isIOS ? 'iOS' : 'Other'}`,
-        `Service Worker: ${results.checks.serviceWorkerRegistered ? '✅' : '❌'}`,
-        `Push Support: ${results.checks.pushManagerSupport ? '✅' : '❌'}`,
-        `Permission: ${results.checks.notificationPermission}`,
-        `Subscription: ${results.checks.hasActiveSubscription ? '✅' : '❌'}`,
-        `VAPID Key: ${results.checks.vapidKeyConfigured ? '✅' : '❌'}`
-      ].join('\n');
-      
-      toast({
-        title: "Debug Complete",
-        description: summary,
-      });
-      console.log('🔍 Push Notification Debug Results:', results);
-    } catch (error) {
-      console.error('Debug failed:', error);
-      toast({
-        title: "Debug Failed", 
-        description: error.message || "Check browser console for errors",
-        variant: "destructive"
-      });
-    }
-  };
+
 
   useEffect(() => {
     if (!user) {
@@ -230,7 +192,7 @@ const Settings = () => {
         <div className="flex-1 flex flex-col">
           <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container flex h-14 items-center px-4">
-              <SidebarTrigger className="mr-4" />
+              {isMobile && <SidebarTrigger className="mr-4" />}
               <h1 className="text-xl font-semibold">Settings</h1>
             </div>
           </header>
@@ -323,7 +285,8 @@ const Settings = () => {
 
                 <Separator />
 
-                <div className="flex items-center justify-between">
+                {/* Push Notifications toggle hidden - will be re-enabled later */}
+                {/* <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Push Notifications</Label>
                     <p className="text-sm text-muted-foreground">
@@ -340,7 +303,7 @@ const Settings = () => {
                     }
                     disabled={isUpdatingNotifications || !isPushSupported}
                   />
-                </div>
+                </div> */}
 
                 <Separator />
 
@@ -362,64 +325,7 @@ const Settings = () => {
               </CardContent>
             </Card>
 
-            {/* Push Notification Debug - Always available for troubleshooting */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Push Notification Debug</CardTitle>
-                <CardDescription>
-                  Run diagnostics to identify push notification issues
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button onClick={runPushDebug} variant="outline">
-                  Run Debug Check
-                </Button>
-                
-                {showDebugResults && debugResults && (
-                  <div className="mt-4 p-4 bg-muted rounded-lg">
-                    <h4 className="font-semibold mb-2">Debug Results:</h4>
-                    <div className="text-sm space-y-1">
-                      <div>🔍 <strong>Device:</strong> {debugResults.isIOS ? 'iOS' : 'Other'}</div>
-                      <div>🔧 <strong>Service Worker:</strong> {debugResults.checks.serviceWorkerRegistered ? '✅ Registered' : '❌ Not Registered'}</div>
-                      <div>📱 <strong>Push Support:</strong> {debugResults.checks.pushManagerSupport ? '✅ Supported' : '❌ Not Supported'}</div>
-                      <div>🔒 <strong>Permission:</strong> {debugResults.checks.notificationPermission}</div>
-                      <div>📡 <strong>Subscription:</strong> {debugResults.checks.hasActiveSubscription ? '✅ Active' : '❌ None'}</div>
-                      <div>🔑 <strong>VAPID Key:</strong> {debugResults.checks.vapidKeyConfigured ? '✅ Configured' : '❌ Missing'}</div>
-                      {debugResults.checks.subscriptionEndpoint && (
-                        <div>🌐 <strong>Endpoint:</strong> {debugResults.checks.isAppleEndpoint ? 'Apple Push Service' : 'FCM/Google'}</div>
-                      )}
-                      {debugResults.isIOS && debugResults.checks.iosSpecific && (
-                        <>
-                          <div>🍎 <strong>PWA Mode:</strong> {debugResults.checks.iosSpecific.isPWA ? '✅ Running as PWA' : '❌ Running in Safari'}</div>
-                          <div>🏠 <strong>Home Screen:</strong> {debugResults.checks.iosSpecific.isAddedToHomeScreen ? '✅ Added' : '❌ Not Added'}</div>
-                        </>
-                      )}
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        Time: {new Date(debugResults.timestamp).toLocaleTimeString()}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* iOS-Specific Push Debugger - Always available for iOS troubleshooting */}
-            <IOSPushDebugger />
-
-            {/* Advanced Debug Tools - Always available for mobile debugging */}
-            <DebugPushNotifications />
-
-            {/* Quick Test Notification - Always available for mobile debugging */}
-            <QuickTestNotification />
-
-            {/* Service Worker Debug - Always available for mobile debugging */}
-            <ServiceWorkerDebug />
-
-            {/* Service Worker Logs - Always available for mobile debugging */}
-            <ServiceWorkerLogs />
-
-            {/* Push Notification Testing - Only show in development */}
-            {import.meta.env.DEV && <PushNotificationTest />}
+            {/* Push notification debug components removed - will be re-enabled later */}
 
             {/* Danger Zone */}
             <Card className="border-destructive">

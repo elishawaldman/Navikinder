@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, Pill, CheckCircle, Mail } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -164,11 +164,17 @@ const Auth = () => {
       <div className="max-w-md w-full">
         {/* Logo and Header */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-brand-blue to-brand-blue-dark rounded-lg flex items-center justify-center">
-              <Pill className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-gray-900 font-heading">Navikinder</span>
+          <div className="flex items-center justify-center mb-6">
+            <button 
+              onClick={() => navigate('/')}
+              className="cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              <img 
+                src="/NaviKinder - format logo.png" 
+                alt="NaviKinder Healthcare" 
+                className="h-16 w-auto object-contain"
+              />
+            </button>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome</h1>
           <p className="text-gray-600">Sign in to your account or create a new one</p>

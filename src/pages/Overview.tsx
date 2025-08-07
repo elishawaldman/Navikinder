@@ -66,7 +66,7 @@ const Overview = () => {
         <main className="flex-1 max-w-full overflow-x-hidden">
           <div className="container mx-auto px-4 py-6 space-y-6">
             <PWAInstallPrompt />
-            <PushNotificationSetup />
+            {/* <PushNotificationSetup /> */}
           </div>
           <DashboardContent />
         </main>

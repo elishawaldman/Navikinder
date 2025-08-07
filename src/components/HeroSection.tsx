@@ -9,8 +9,8 @@ const HeroSection = () => {
 
   const handleStartNow = () => {
     if (user) {
-      // User is logged in, scroll to features or navigate to dashboard
-      document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+      // User is logged in, navigate to overview page
+      navigate('/overview');
     } else {
       // User is not logged in, navigate to auth page
       navigate('/auth');

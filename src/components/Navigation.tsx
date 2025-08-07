@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, X, Pill, LogOut } from 'lucide-react';
+import { Menu, X, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -33,11 +33,12 @@ const Navigation = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-brand-blue to-brand-blue-dark rounded-lg flex items-center justify-center">
-              <Pill className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900 font-heading">Navikinder</span>
+          <div className="flex items-center">
+            <img 
+              src="/NaviKinder - format logo.png" 
+              alt="NaviKinder Healthcare" 
+              className="h-14 w-auto object-contain"
+            />
           </div>
 
           {/* Desktop Navigation */}
@@ -78,9 +79,13 @@ const Navigation = () => {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <>
-                <span className="text-sm text-gray-600">
-                  Welcome, {user.email?.split('@')[0]}
-                </span>
+                <Button 
+                  size="sm" 
+                  onClick={() => navigate('/overview')}
+                  className="bg-brand-blue hover:bg-brand-blue-dark text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  Go to Dashboard
+                </Button>
                 <Button 
                   variant="ghost"
                   size="sm" 
@@ -158,9 +163,13 @@ const Navigation = () => {
               </a>
               {user ? (
                 <div className="px-3 py-2 space-y-2">
-                  <div className="text-sm text-gray-600 px-3 py-1">
-                    Welcome, {user.email?.split('@')[0]}
-                  </div>
+                  <Button 
+                    size="sm" 
+                    onClick={() => navigate('/overview')}
+                    className="w-full bg-brand-blue hover:bg-brand-blue-dark text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                  >
+                    Go to Dashboard
+                  </Button>
                   <Button 
                     variant="ghost"
                     size="sm" 

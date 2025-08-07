@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -48,6 +49,7 @@ const Profile = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [children, setChildren] = useState<Child[]>([]);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -274,7 +276,7 @@ const Profile = () => {
         <div className="flex-1 flex flex-col">
           <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container flex h-14 items-center px-4">
-              <SidebarTrigger className="mr-4" />
+              {isMobile && <SidebarTrigger className="mr-4" />}
               <h1 className="text-xl font-semibold">Profile</h1>
             </div>
           </header>

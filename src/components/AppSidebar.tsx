@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pill, Calendar, Plus, Upload, History, LogOut, User, Home, Settings } from "lucide-react";
+import { Calendar, Plus, Upload, History, LogOut, User, Home, Settings } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -64,14 +64,20 @@ export function AppSidebar() {
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       {/* Header */}
       <SidebarHeader className="border-b border-border/40 bg-background">
-        <div className="flex items-center gap-3 px-4 py-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-            <Pill className="h-5 w-5 text-primary-foreground" />
-          </div>
-          {!isCollapsed && (
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">MedTracker</h2>
-              <p className="text-xs text-muted-foreground">Medication Management</p>
+        <div className="flex items-center justify-center px-4 py-4">
+          {!isCollapsed ? (
+            <img 
+              src="/NaviKinder - format logo.png" 
+              alt="NaviKinder Healthcare" 
+              className="h-12 w-full object-contain"
+            />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white">
+              <img 
+                src="/navikinder-logo-192.png" 
+                alt="Navikinder Logo" 
+                className="h-8 w-8 object-contain"
+              />
             </div>
           )}
         </div>
