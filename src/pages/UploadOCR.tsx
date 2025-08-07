@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { TimesPerDayPicker } from "@/components/ui/times-per-day-picker";
-import { ArrowLeft, Upload, FileImage, Loader2, X, Plus } from "lucide-react";
+import { ArrowLeft, Upload, FileImage, Loader2, X, Plus, ChevronDown, ChevronRight, Bug } from "lucide-react";
 import { toast } from "sonner";
 
 const doseUnits = ["mg", "ml", "tablets", "capsules", "drops", "sprays", "units", "puffs"];
@@ -46,6 +46,14 @@ export default function UploadOCR() {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [debugData, setDebugData] = useState<{
+    geminiText?: string;
+    aiResponse?: any;
+    finalMedications?: any[];
+    processingTime?: number;
+    confidence?: number;
+  } | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -111,52 +119,138 @@ export default function UploadOCR() {
     setShowResults(false);
   };
 
+  // Helper function to convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const launchOCR = async () => {
     if (!uploadedFile) return;
     
     setIsProcessingOCR(true);
     
-    // Simulate OCR processing delay
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Mock OCR results - populate form with multiple medications
-    const mockMedications = [
-      {
-        childId: "",
-        name: "Amoxicillin",
-        doseAmount: "250",
-        doseUnit: "mg",
-        route: "Oral",
-        isPRN: false,
-        startDate: new Date(),
-        startTime: "08:00",
-        scheduleType: "times_per_day" as const,
-        everyXHours: 8,
-        timesPerDay: 3,
-        specificTimes: ["08:00", "14:00", "20:00"],
-        notes: "Take with food",
-      },
-      {
-        childId: "",
-        name: "Ibuprofen",
-        doseAmount: "100",
-        doseUnit: "mg",
-        route: "Oral",
-        isPRN: true,
-        startDate: new Date(),
-        startTime: "08:00",
-        scheduleType: "every_x_hours" as const,
-        everyXHours: 6,
-        timesPerDay: 2,
-        specificTimes: ["08:00"],
-        notes: "For fever or pain",
-      },
-    ];
+    try {
+      // Convert file to base64
+      const base64DataUrl = await fileToBase64(uploadedFile);
+      const base64Content = base64DataUrl.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+      
+      console.log(`📷 Processing ${uploadedFile.name} (${(uploadedFile.size / 1024 / 1024).toFixed(2)} MB)`);
+      
+      // Call Supabase Edge Function (Gemini-based)
+      const response = await fetch(
+        "https://nqrtkgxqgenflhpijpxa.supabase.co/functions/v1/ocr-gemini",
+        {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xcnRrZ3hxZ2VuZmxocGlqcHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM2OTY4NzcsImV4cCI6MjA2OTI3Mjg3N30.YFkNt9Zz3pG8uVQj6UmsTCWuOswW7wDRSS5GGmELaXI",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            imageBase64: base64Content,
+            mimeType: uploadedFile.type
+          })
+        }
+      );
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || `Server error: ${response.status}`);
+      }
+      
+      if (result.success) {
+        // Store debug data for troubleshooting
+        setDebugData({
+          geminiText: result.geminiText || "Gemini analysis not available",
+          aiResponse: result.medications,
+          processingTime: result.processingTime,
+          confidence: result.confidence,
+          finalMedications: [] // Will be set below
+        });
+        // Helper function to generate times based on timesPerDay
+        const generateTimesFromCount = (count: number): string[] => {
+          if (count === 1) return ["08:00"];
+          if (count === 2) return ["08:00", "20:00"];
+          if (count === 3) return ["08:00", "14:00", "20:00"];
+          if (count === 4) return ["08:00", "12:00", "16:00", "20:00"];
+          
+          // For other counts, distribute evenly across the day
+          const times: string[] = [];
+          const hoursInDay = 24;
+          const interval = hoursInDay / count;
+          
+          for (let i = 0; i < count; i++) {
+            const hour = Math.round(8 + (i * interval)) % 24;
+            times.push(`${hour.toString().padStart(2, '0')}:00`);
+          }
+          return times;
+        };
 
-    form.setValue("medications", mockMedications);
-    setIsProcessingOCR(false);
-    setShowResults(true);
-    toast.success("OCR processing completed successfully");
+        // Map AI response to form schema
+        const formattedMedications = result.medications.map((med: any) => {
+          const timesPerDay = med.timesPerDay || 2;
+          let specificTimes: string[];
+
+          // Generate specificTimes based on scheduleType
+          if (med.scheduleType === "times_per_day") {
+            specificTimes = generateTimesFromCount(timesPerDay);
+          } else if (med.scheduleType === "specific_times") {
+            specificTimes = med.specificTimes || ["08:00"];
+          } else {
+            // For every_x_hours, just set a default start time
+            specificTimes = ["08:00"];
+          }
+
+          return {
+            childId: "",
+            name: med.name,
+            doseAmount: med.doseAmount,
+            doseUnit: med.doseUnit,
+            route: med.route,
+            isPRN: med.isPRN,
+            startDate: new Date(),
+            startTime: "08:00",
+            scheduleType: med.scheduleType,
+            everyXHours: med.everyXHours || 8,
+            timesPerDay: timesPerDay,
+            specificTimes: specificTimes,
+            notes: med.notes || "",
+          };
+        });
+        
+        console.log(`✅ Successfully processed ${formattedMedications.length} medications with ${(result.confidence * 100).toFixed(1)}% confidence`);
+        
+        // Update debug data with final medications
+        setDebugData(prev => ({
+          ...prev!,
+          finalMedications: formattedMedications
+        }));
+        
+        form.setValue("medications", formattedMedications);
+        setShowResults(true);
+        
+        // Show confidence-based message
+        if (result.confidence > 0.8) {
+          toast.success(`Gemini analysis completed successfully! Found ${formattedMedications.length} medications with high confidence.`);
+        } else if (result.confidence > 0.6) {
+          toast.success(`Gemini analysis completed! Found ${formattedMedications.length} medications. Please review the extracted information.`);
+        } else {
+          toast.warning(`Gemini analysis completed with low confidence. Please carefully review and correct the extracted information.`);
+        }
+      } else {
+        throw new Error(result.error || "Gemini analysis failed");
+      }
+    } catch (error: any) {
+      console.error("❌ Gemini Analysis Error:", error);
+      toast.error(`Gemini Error: ${error.message || "Failed to analyze image"}`);
+    } finally {
+      setIsProcessingOCR(false);
+    }
   };
 
   const addMedication = () => {
@@ -265,10 +359,10 @@ export default function UploadOCR() {
                   {isProcessingOCR ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Processing OCR...
+                      Processing with Gemini...
                     </>
                   ) : (
-                    "Launch OCR"
+                    "Launch Gemini Analysis"
                   )}
                 </Button>
               </div>
@@ -317,6 +411,86 @@ export default function UploadOCR() {
               </div>
             </form>
           </Form>
+        )}
+
+        {/* Debug Panel */}
+        {debugData && (
+          <Card className="mt-6 border-amber-200 bg-amber-50">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bug className="h-5 w-5 text-amber-600" />
+                  <CardTitle className="text-lg text-amber-800">
+                    Gemini Analysis Debug Information
+                  </CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDebug(!showDebug)}
+                  className="text-amber-700 hover:text-amber-900"
+                >
+                  {showDebug ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                  {showDebug ? "Hide" : "Show"} Debug Details
+                </Button>
+              </div>
+              <div className="text-sm text-amber-700">
+                Processing time: {debugData.processingTime}ms | 
+                Confidence: {((debugData.confidence || 0) * 100).toFixed(1)}% |
+                Gemini found: {debugData.aiResponse?.length || 0} medications |
+                Final mapped: {debugData.finalMedications?.length || 0} medications
+              </div>
+            </CardHeader>
+            
+            {showDebug && (
+              <CardContent className="space-y-4">
+                {/* Gemini Analysis */}
+                <div>
+                  <h4 className="font-semibold text-amber-800 mb-2">1. Gemini Raw Response (Gemini 2.5 Flash Lite)</h4>
+                  <div className="bg-white border rounded-md p-3 max-h-40 overflow-y-auto">
+                    <pre className="text-xs whitespace-pre-wrap text-gray-700">
+                      {debugData.geminiText || "No Gemini response available"}
+                    </pre>
+                  </div>
+                </div>
+
+                {/* Structured Medications */}
+                <div>
+                  <h4 className="font-semibold text-amber-800 mb-2">2. Structured Medications (Gemini Parsed)</h4>
+                  <div className="bg-white border rounded-md p-3 max-h-60 overflow-y-auto">
+                    <pre className="text-xs text-gray-700">
+                      {JSON.stringify(debugData.aiResponse || [], null, 2)}
+                    </pre>
+                  </div>
+                </div>
+
+                {/* Final Form Data */}
+                <div>
+                  <h4 className="font-semibold text-amber-800 mb-2">3. Final Mapped Form Data</h4>
+                  <div className="bg-white border rounded-md p-3 max-h-60 overflow-y-auto">
+                    <pre className="text-xs text-gray-700">
+                      {JSON.stringify(debugData.finalMedications || [], null, 2)}
+                    </pre>
+                  </div>
+                </div>
+
+                {/* Analysis */}
+                <div className="bg-amber-100 border border-amber-200 rounded-md p-3">
+                  <h4 className="font-semibold text-amber-800 mb-2">🔍 Quick Analysis</h4>
+                  <div className="text-sm text-amber-700 space-y-1">
+                    <div>• Gemini Response Length: {(debugData.geminiText || "").length} characters</div>
+                    <div>• Gemini Found: {debugData.aiResponse?.length || 0} medications</div>
+                    <div>• Form Mapped: {debugData.finalMedications?.length || 0} medications</div>
+                    <div>• Data Loss: {((debugData.aiResponse?.length || 0) - (debugData.finalMedications?.length || 0)) !== 0 ? "⚠️ Yes" : "✅ No"}</div>
+                  </div>
+                </div>
+              </CardContent>
+            )}
+          </Card>
         )}
       </div>
     </div>
@@ -566,7 +740,7 @@ function MedicationCard({
             {watchScheduleType === "times_per_day" && (
               <FormField
                 control={form.control}
-                name={`medications.${index}.timesPerDay`}
+                name={`medications.${index}.specificTimes`}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Times Per Day</FormLabel>

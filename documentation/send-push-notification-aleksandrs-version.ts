@@ -6,6 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
 interface PushNotificationRequest {
   dose_instance_id: string;
   due_datetime: string;
@@ -16,6 +17,7 @@ interface PushNotificationRequest {
   parent_email: string;
   parent_name: string;
 }
+
 // CRITICAL: Manual web push implementation for iOS compatibility
 async function sendWebPushNotification(
   subscription: any,
@@ -23,7 +25,9 @@ async function sendWebPushNotification(
   vapidPublicKey: string,
   vapidPrivateKey: string,
   vapidEmail: string
-) {
+) 
+
+{
   // Import required crypto libraries
   const { createSign, createHash, randomBytes } = await import("node:crypto");
   const { URL } = await import("node:url");
@@ -184,22 +188,7 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     const payloadString = JSON.stringify(notificationPayload);
-
-    
-          
-            
-    
-
-          
-          Expand Down
-          
-            
-    
-
-          
-          Expand Up
-    
-    @@ -252,4 +252,4 @@ const handler = async (req: Request): Promise<Response> => {
+    const handler = async (req: Request): Promise<Response> => {
   
     console.log('📦 Payload:', payloadString);
     // Send to all subscriptions
