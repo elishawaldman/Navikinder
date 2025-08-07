@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { Plus, Upload, History, Calendar, Pill, MoreVertical, Filter, Edit } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { DueMedicationsSection } from './DueMedicationsSection';
+import { DueMedicationsSection, type DueMedicationsSectionRef } from './DueMedicationsSection';
 import { EditMedicationModal } from './EditMedicationModal';
 import { PRNDoseModal } from './PRNDoseModal';
 import { Button } from '@/components/ui/button';
@@ -48,7 +48,7 @@ interface MedicationSchedule {
   active_from: string;
 }
 
-export function DashboardContent() {
+export const DashboardContent = forwardRef<DueMedicationsSectionRef>(function DashboardContent(_, ref) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("scheduled");
@@ -430,7 +430,7 @@ export function DashboardContent() {
         </div>
 
         {/* Due Medications Section */}
-        <DueMedicationsSection />
+        <DueMedicationsSection ref={ref} />
 
         {/* Child Filter Pills */}
         {children.length > 1 && (
@@ -625,4 +625,4 @@ export function DashboardContent() {
       </div>
     </div>
   );
-}
+});

@@ -47,7 +47,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`📧 Sending reminder for ${child_name}'s ${medication_name} to ${parent_email} (timezone: ${parent_timezone})`)
 
-    // Get app domain from environment or use default
+    // Get app domain from environment
+    // For production, use the production domain
+    // For development/testing, can be overridden with APP_DOMAIN env var
     const app_domain = Deno.env.get('APP_DOMAIN') || 'navikinder.com';
 
     // Render the React Email template

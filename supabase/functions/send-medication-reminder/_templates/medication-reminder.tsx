@@ -126,7 +126,7 @@ export const MedicationReminderEmail = ({
             
             <Section style={ctaSection}>
               <Link
-                href={`https://${app_domain}/overview?reminder=${dose_instance_id}`}
+                href={`${app_domain.includes('localhost') ? 'http' : 'https'}://${app_domain}/overview?reminder=${dose_instance_id}`}
                 style={button}
               >
                 Record This Medication

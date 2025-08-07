@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +8,7 @@ import { DashboardContent } from '@/components/DashboardContent';
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 import { PushNotificationSetup } from '@/components/PushNotificationSetup';
 import { EmailReminderModal } from '@/components/EmailReminderModal';
+import type { DueMedicationsSectionRef } from '@/components/DueMedicationsSection';
 
 const Overview = () => {
   const { user, loading } = useAuth();
@@ -16,6 +17,7 @@ const Overview = () => {
   const [profileLoading, setProfileLoading] = useState(true);
   const [reminderModalOpen, setReminderModalOpen] = useState(false);
   const [reminderDoseInstanceId, setReminderDoseInstanceId] = useState<string | null>(null);
+  const dueMedicationsSectionRef = useRef<DueMedicationsSectionRef>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -69,9 +71,11 @@ const Overview = () => {
     setReminderDoseInstanceId(null);
   };
 
-  const handleReminderConfirm = () => {
-    // Optional: Refresh the dashboard content to show updated medication status
-    // This could trigger a refresh of DueMedicationsSection
+  const handleReminderConfirm = async () => {
+    // Refresh the DueMedicationsSection to show updated medication status
+    if (dueMedicationsSectionRef.current) {
+      await dueMedicationsSectionRef.current.refreshMedications();
+    }
     setReminderModalOpen(false);
     setReminderDoseInstanceId(null);
   };
@@ -97,7 +101,7 @@ const Overview = () => {
             <PWAInstallPrompt />
             {/* <PushNotificationSetup /> */}
           </div>
-          <DashboardContent />
+          <DashboardContent ref={dueMedicationsSectionRef} />
         </main>
       </div>
 

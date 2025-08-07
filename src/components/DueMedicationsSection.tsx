@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,14 +19,18 @@ interface DueMedication {
   urgency: 'due' | 'overdue' | 'upcoming';
 }
 
-export function DueMedicationsSection() {
+export interface DueMedicationsSectionRef {
+  refreshMedications: () => Promise<void>;
+}
+
+export const DueMedicationsSection = forwardRef<DueMedicationsSectionRef>(function DueMedicationsSection(_, ref) {
   const { user } = useAuth();
   const [dueMedications, setDueMedications] = useState<DueMedication[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMedication, setSelectedMedication] = useState<DueMedication | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const loadDueMedications = async () => {
+  const loadDueMedications = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -48,7 +52,7 @@ export function DueMedicationsSection() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     loadDueMedications();
@@ -57,6 +61,11 @@ export function DueMedicationsSection() {
     const interval = setInterval(loadDueMedications, 60000);
     return () => clearInterval(interval);
   }, [user]);
+
+  // Expose refresh method to parent components
+  useImperativeHandle(ref, () => ({
+    refreshMedications: loadDueMedications,
+  }), [loadDueMedications]);
 
   const handleCardClick = (medication: DueMedication) => {
     setSelectedMedication(medication);
@@ -198,4 +207,4 @@ export function DueMedicationsSection() {
       )}
     </>
   );
-}
+});
