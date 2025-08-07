@@ -472,82 +472,130 @@ const History = () => {
                           No scheduled medication records found.
                         </p>
                       ) : (
-                        <div className="overflow-x-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead 
-                                  className="cursor-pointer hover:bg-muted/50"
-                                  onClick={() => handleSort('medication_name')}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    Medication
-                                    {getSortIcon('medication_name')}
-                                  </div>
-                                </TableHead>
-                                <TableHead 
-                                  className="cursor-pointer hover:bg-muted/50"
-                                  onClick={() => handleSort('child_name')}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    Child
-                                    {getSortIcon('child_name')}
-                                  </div>
-                                </TableHead>
-                                <TableHead 
-                                  className="cursor-pointer hover:bg-muted/50"
-                                  onClick={() => handleSort('amount_given')}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    Dose
-                                    {getSortIcon('amount_given')}
-                                  </div>
-                                </TableHead>
-                                <TableHead 
-                                  className="cursor-pointer hover:bg-muted/50"
-                                  onClick={() => handleSort('given_datetime')}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    Date/Time
-                                    {getSortIcon('given_datetime')}
-                                  </div>
-                                </TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Reason</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {scheduledLogs.map((log) => (
-                                <TableRow key={log.id}>
-                                  <TableCell className="font-medium">
-                                    {log.medication_name}
-                                  </TableCell>
-                                  <TableCell>{log.child_name}</TableCell>
-                                  <TableCell>
-                                    {log.amount_given} {log.unit}
-                                  </TableCell>
-                                  <TableCell>
-                                    {format(new Date(log.given_datetime), 'MMM dd, yyyy HH:mm')}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant={log.was_given ? "default" : "destructive"}>
+                        <>
+                          {/* Mobile Card Layout */}
+                          <div className="block md:hidden space-y-4">
+                            {scheduledLogs.map((log) => (
+                              <Card key={log.id} className="p-4">
+                                <div className="space-y-3">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-medium text-sm leading-tight break-words">
+                                        {log.medication_name}
+                                      </h4>
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {log.child_name}
+                                      </p>
+                                    </div>
+                                    <Badge variant={log.was_given ? "default" : "destructive"} className="text-xs flex-shrink-0">
                                       {log.was_given ? "Given" : "Not Given"}
                                     </Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    {!log.was_given && log.reason_not_given ? (
-                                      <span className="text-sm text-muted-foreground">
-                                        {log.reason_not_given}
-                                      </span>
-                                    ) : (
-                                      "-"
-                                    )}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-3 text-xs">
+                                    <div>
+                                      <span className="text-muted-foreground">Dose:</span>
+                                      <p className="font-medium">{log.amount_given} {log.unit}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Date/Time:</span>
+                                      <p className="font-medium">{format(new Date(log.given_datetime), 'MMM dd, HH:mm')}</p>
+                                    </div>
+                                  </div>
+                                  
+                                  {!log.was_given && log.reason_not_given && (
+                                    <div className="pt-2 border-t">
+                                      <span className="text-xs text-muted-foreground">Reason not given:</span>
+                                      <p className="text-xs mt-1">{log.reason_not_given}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+
+                          {/* Desktop Table Layout */}
+                          <div className="hidden md:block">
+                            <div className="overflow-x-auto -mx-6 px-6">
+                              <div className="inline-block min-w-full align-middle">
+                                <Table className="min-w-full">
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead 
+                                        className="cursor-pointer hover:bg-muted/50 whitespace-nowrap"
+                                        onClick={() => handleSort('medication_name')}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          Medication
+                                          {getSortIcon('medication_name')}
+                                        </div>
+                                      </TableHead>
+                                      <TableHead 
+                                        className="cursor-pointer hover:bg-muted/50 whitespace-nowrap"
+                                        onClick={() => handleSort('child_name')}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          Child
+                                          {getSortIcon('child_name')}
+                                        </div>
+                                      </TableHead>
+                                      <TableHead 
+                                        className="cursor-pointer hover:bg-muted/50 whitespace-nowrap"
+                                        onClick={() => handleSort('amount_given')}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          Dose
+                                          {getSortIcon('amount_given')}
+                                        </div>
+                                      </TableHead>
+                                      <TableHead 
+                                        className="cursor-pointer hover:bg-muted/50 whitespace-nowrap"
+                                        onClick={() => handleSort('given_datetime')}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          Date/Time
+                                          {getSortIcon('given_datetime')}
+                                        </div>
+                                      </TableHead>
+                                      <TableHead className="whitespace-nowrap">Status</TableHead>
+                                      <TableHead className="whitespace-nowrap">Reason</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {scheduledLogs.map((log) => (
+                                      <TableRow key={log.id}>
+                                        <TableCell className="font-medium whitespace-nowrap">
+                                          {log.medication_name}
+                                        </TableCell>
+                                        <TableCell className="whitespace-nowrap">{log.child_name}</TableCell>
+                                        <TableCell className="whitespace-nowrap">
+                                          {log.amount_given} {log.unit}
+                                        </TableCell>
+                                        <TableCell className="whitespace-nowrap">
+                                          {format(new Date(log.given_datetime), 'MMM dd, yyyy HH:mm')}
+                                        </TableCell>
+                                        <TableCell>
+                                          <Badge variant={log.was_given ? "default" : "destructive"}>
+                                            {log.was_given ? "Given" : "Not Given"}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                          {!log.was_given && log.reason_not_given ? (
+                                            <span className="text-sm text-muted-foreground">
+                                              {log.reason_not_given}
+                                            </span>
+                                          ) : (
+                                            "-"
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          </div>
+                        </>
                       )}
                     </CardContent>
                   </Card>
@@ -567,72 +615,120 @@ const History = () => {
                           No PRN medication records found.
                         </p>
                       ) : (
-                        <div className="overflow-x-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead 
-                                  className="cursor-pointer hover:bg-muted/50"
-                                  onClick={() => handleSort('medication_name')}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    Medication
-                                    {getSortIcon('medication_name')}
+                        <>
+                          {/* Mobile Card Layout */}
+                          <div className="block md:hidden space-y-4">
+                            {prnLogs.map((log) => (
+                              <Card key={log.id} className="p-4">
+                                <div className="space-y-3">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-medium text-sm leading-tight break-words">
+                                        {log.medication_name}
+                                      </h4>
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {log.child_name}
+                                      </p>
+                                    </div>
+                                    <Badge variant="outline" className="text-xs flex-shrink-0">
+                                      PRN
+                                    </Badge>
                                   </div>
-                                </TableHead>
-                                <TableHead 
-                                  className="cursor-pointer hover:bg-muted/50"
-                                  onClick={() => handleSort('child_name')}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    Child
-                                    {getSortIcon('child_name')}
+                                  
+                                  <div className="grid grid-cols-2 gap-3 text-xs">
+                                    <div>
+                                      <span className="text-muted-foreground">Dose:</span>
+                                      <p className="font-medium">{log.amount_given} {log.unit}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Date/Time:</span>
+                                      <p className="font-medium">{format(new Date(log.given_datetime), 'MMM dd, HH:mm')}</p>
+                                    </div>
                                   </div>
-                                </TableHead>
-                                <TableHead 
-                                  className="cursor-pointer hover:bg-muted/50"
-                                  onClick={() => handleSort('amount_given')}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    Dose
-                                    {getSortIcon('amount_given')}
-                                  </div>
-                                </TableHead>
-                                <TableHead 
-                                  className="cursor-pointer hover:bg-muted/50"
-                                  onClick={() => handleSort('given_datetime')}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    Date/Time
-                                    {getSortIcon('given_datetime')}
-                                  </div>
-                                </TableHead>
-                                <TableHead>Reason Given</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {prnLogs.map((log) => (
-                                <TableRow key={log.id}>
-                                  <TableCell className="font-medium">
-                                    {log.medication_name}
-                                  </TableCell>
-                                  <TableCell>{log.child_name}</TableCell>
-                                  <TableCell>
-                                    {log.amount_given} {log.unit}
-                                  </TableCell>
-                                  <TableCell>
-                                    {format(new Date(log.given_datetime), 'MMM dd, yyyy HH:mm')}
-                                  </TableCell>
-                                  <TableCell>
-                                    <span className="text-sm">
-                                      {log.reason_given || "-"}
-                                    </span>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
+                                  
+                                  {log.reason_given && (
+                                    <div className="pt-2 border-t">
+                                      <span className="text-xs text-muted-foreground">Reason given:</span>
+                                      <p className="text-xs mt-1">{log.reason_given}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+
+                          {/* Desktop Table Layout */}
+                          <div className="hidden md:block">
+                            <div className="overflow-x-auto -mx-6 px-6">
+                              <div className="inline-block min-w-full align-middle">
+                                <Table className="min-w-full">
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead 
+                                        className="cursor-pointer hover:bg-muted/50 whitespace-nowrap"
+                                        onClick={() => handleSort('medication_name')}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          Medication
+                                          {getSortIcon('medication_name')}
+                                        </div>
+                                      </TableHead>
+                                      <TableHead 
+                                        className="cursor-pointer hover:bg-muted/50 whitespace-nowrap"
+                                        onClick={() => handleSort('child_name')}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          Child
+                                          {getSortIcon('child_name')}
+                                        </div>
+                                      </TableHead>
+                                      <TableHead 
+                                        className="cursor-pointer hover:bg-muted/50 whitespace-nowrap"
+                                        onClick={() => handleSort('amount_given')}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          Dose
+                                          {getSortIcon('amount_given')}
+                                        </div>
+                                      </TableHead>
+                                      <TableHead 
+                                        className="cursor-pointer hover:bg-muted/50 whitespace-nowrap"
+                                        onClick={() => handleSort('given_datetime')}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          Date/Time
+                                          {getSortIcon('given_datetime')}
+                                        </div>
+                                      </TableHead>
+                                      <TableHead className="whitespace-nowrap">Reason Given</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {prnLogs.map((log) => (
+                                      <TableRow key={log.id}>
+                                        <TableCell className="font-medium whitespace-nowrap">
+                                          {log.medication_name}
+                                        </TableCell>
+                                        <TableCell className="whitespace-nowrap">{log.child_name}</TableCell>
+                                        <TableCell className="whitespace-nowrap">
+                                          {log.amount_given} {log.unit}
+                                        </TableCell>
+                                        <TableCell className="whitespace-nowrap">
+                                          {format(new Date(log.given_datetime), 'MMM dd, yyyy HH:mm')}
+                                        </TableCell>
+                                        <TableCell>
+                                          <span className="text-sm">
+                                            {log.reason_given || "-"}
+                                          </span>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          </div>
+                        </>
                       )}
                     </CardContent>
                   </Card>
@@ -642,20 +738,21 @@ const History = () => {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-muted-foreground text-center sm:text-left order-2 sm:order-1">
                   Showing {startIndex + 1}-{Math.min(endIndex, filteredLogs.length)} of {filteredLogs.length} records
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 order-1 sm:order-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
+                    className="min-h-[36px] touch-manipulation"
                   >
                     Previous
                   </Button>
-                  <span className="text-sm">
+                  <span className="text-sm whitespace-nowrap px-2">
                     Page {currentPage} of {totalPages}
                   </span>
                   <Button
@@ -663,6 +760,7 @@ const History = () => {
                     size="sm"
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
+                    className="min-h-[36px] touch-manipulation"
                   >
                     Next
                   </Button>

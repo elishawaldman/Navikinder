@@ -345,7 +345,7 @@ export default function NewMedicationEntry() {
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl">How would you like to add medication?</CardTitle>
             <CardDescription className="text-sm">
-              Choose between manual entry or scanning a medication label
+              Choose between manual entry or using image analysis to extract medication details
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -360,12 +360,11 @@ export default function NewMedicationEntry() {
               </Button>
               <Button
                 variant={entryMethod === "ocr" ? "default" : "outline"}
-                onClick={() => setEntryMethod("ocr")}
+                onClick={() => navigate('/upload-ocr')}
                 className="w-full sm:flex-1 justify-center"
-                disabled
               >
                 <Camera className="mr-2 h-4 w-4 flex-shrink-0" />
-                <span className="truncate">Scan Label (Coming Soon)</span>
+                <span className="truncate">Image Analysis</span>
               </Button>
             </div>
           </CardContent>

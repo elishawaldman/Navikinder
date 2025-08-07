@@ -494,26 +494,18 @@ export const DashboardContent = forwardRef<DueMedicationsSectionRef>(function Da
               <div className="space-y-3">
                 {scheduledMeds.map((med) => (
                   <Card key={med.id} className="transition-shadow hover:shadow-md">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <CardTitle className="text-base lg:text-lg">{med.name}</CardTitle>
-                            <Badge variant="secondary" className="text-xs">
-                              {med.child_name}
-                            </Badge>
+                    <CardHeader className="pb-3 px-3 sm:px-6">
+                      <div className="space-y-3">
+                        {/* Top row - Med name and dropdown menu */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-base lg:text-lg leading-tight break-words pr-2">
+                              {med.name}
+                            </CardTitle>
                           </div>
-                          <CardDescription className="text-xs lg:text-sm">
-                            {med.dose_amount} {med.dose_unit} • {getScheduleInfo(med)}
-                          </CardDescription>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <Badge variant="outline" className="text-xs">
-                            Next: {nextDoseTimes[med.id] || "Loading..."}
-                          </Badge>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 flex-shrink-0">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -527,6 +519,23 @@ export const DashboardContent = forwardRef<DueMedicationsSectionRef>(function Da
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+                        </div>
+                        
+                        {/* Middle row - Dose info and child badge */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          <CardDescription className="text-xs lg:text-sm flex-1">
+                            {med.dose_amount} {med.dose_unit} • {getScheduleInfo(med)}
+                          </CardDescription>
+                          <Badge variant="secondary" className="text-xs w-fit">
+                            {med.child_name}
+                          </Badge>
+                        </div>
+                        
+                        {/* Bottom row - Next dose time */}
+                        <div className="flex items-center">
+                          <Badge variant="outline" className="text-xs">
+                            Next: {nextDoseTimes[med.id] || "Loading..."}
+                          </Badge>
                         </div>
                       </div>
                     </CardHeader>
@@ -555,35 +564,18 @@ export const DashboardContent = forwardRef<DueMedicationsSectionRef>(function Da
               <div className="space-y-3">
                 {prnMeds.map((med) => (
                   <Card key={med.id} className="transition-shadow hover:shadow-md">
-                    <CardHeader className="pb-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <CardTitle className="text-base lg:text-lg">{med.name}</CardTitle>
-                            <Badge variant="secondary" className="text-xs">
-                              {med.child_name}
-                            </Badge>
+                    <CardHeader className="pb-3 px-3 sm:px-6">
+                      <div className="space-y-3">
+                        {/* Top row - Med name and dropdown menu */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-base lg:text-lg leading-tight break-words pr-2">
+                              {med.name}
+                            </CardTitle>
                           </div>
-                          <CardDescription className="text-xs lg:text-sm">
-                            {med.dose_amount} {med.dose_unit} • As needed
-                          </CardDescription>
-                          {med.notes && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Notes: {med.notes}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 sm:flex-shrink-0">
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleEnterPRNDose(med.id)}
-                            className="flex-1 sm:flex-initial text-xs lg:text-sm"
-                          >
-                            Enter Dose
-                          </Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 flex-shrink-0">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -597,6 +589,36 @@ export const DashboardContent = forwardRef<DueMedicationsSectionRef>(function Da
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+                        </div>
+                        
+                        {/* Middle row - Dose info and child badge */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          <CardDescription className="text-xs lg:text-sm flex-1">
+                            {med.dose_amount} {med.dose_unit} • As needed
+                          </CardDescription>
+                          <Badge variant="secondary" className="text-xs w-fit">
+                            {med.child_name}
+                          </Badge>
+                        </div>
+                        
+                        {/* Notes row - if present */}
+                        {med.notes && (
+                          <div className="flex items-start">
+                            <p className="text-xs text-muted-foreground">
+                              Notes: {med.notes}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Bottom row - Enter dose button */}
+                        <div className="flex items-center pt-1">
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleEnterPRNDose(med.id)}
+                            className="w-full sm:w-auto text-xs lg:text-sm min-h-[36px] touch-manipulation"
+                          >
+                            Enter Dose
+                          </Button>
                         </div>
                       </div>
                     </CardHeader>
