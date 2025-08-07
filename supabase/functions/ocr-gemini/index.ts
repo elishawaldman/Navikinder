@@ -135,10 +135,16 @@ IMPORTANT INSTRUCTIONS:
 - Prioritize dosage information from "Give..." instructions over medication label dosages
 - Look for actual administration instructions, not just the medication strength
 
+SPECIAL HANDLING FOR TOPICAL MEDICATIONS:
+- For topical medications (creams, ointments): percentages like "1%" are part of the medication NAME
+- Examples: "hydrocortisone 1%", "betamethasone 0.1%" - keep the percentage in the name
+- For topical applications: use doseAmount: "1" and doseUnit: "application" or "ND"
+- "Apply to affected area" = Topical route
+
 Extract the following for each medication:
-1. Medication name (clean, without dosage information)  
-2. Dose amount (prioritize from "Give..." text, then from medication label)
-3. Dose unit (mg, ml, tablet, capsule, etc.)
+1. Medication name (clean, but include % for topical medications)  
+2. Dose amount (prioritize from "Give..." text, then from medication label, use "1" for topical applications)
+3. Dose unit (mg, ml, tablet, capsule, application, ND, etc.)
 4. Route of administration (Oral, Topical, Injection, etc.)
 5. Whether it's PRN (as needed) or scheduled
 6. Schedule type and frequency
@@ -150,6 +156,7 @@ Handle these medical abbreviations:
 - "QID/qid" = times_per_day: 4
 - PRN/prn = isPRN: true
 - "Every X hours" or "qXh" = every_x_hours: X
+- "12-hour gap between doses" = every_x_hours: 12
 - "At Night", "bedtime" = specific_times: ["22:00"]
 - "In the morning", "with breakfast" = specific_times: ["08:00"]
 - "Daily at lunch" = specific_times: ["12:00"]
@@ -157,9 +164,9 @@ Handle these medical abbreviations:
 
 Return ONLY a valid JSON array with this exact structure:
 [{
-  "name": "medication name (clean, no dosage)",
-  "doseAmount": "numeric amount from Give... instruction or label",
-  "doseUnit": "mg|ml|tablet|capsule|etc.",
+  "name": "medication name (include % for topical, clean otherwise)",
+  "doseAmount": "numeric amount from Give... instruction or '1' for topical",
+  "doseUnit": "mg|ml|tablet|capsule|application|ND|etc.",
   "route": "Oral|Topical|Injection|etc.",
   "isPRN": boolean,
   "scheduleType": "every_x_hours|times_per_day|specific_times",
@@ -247,6 +254,11 @@ Do not include any explanations, markdown formatting, or text outside the JSON a
       med.confidence = typeof med.confidence === 'number' ? med.confidence : 0.8;
       med.notes = med.notes || "";
       med.route = med.route || "Oral";
+
+      // For topical medications, ensure proper units
+      if (med.route === "Topical" && !["application", "ND"].includes(med.doseUnit)) {
+        med.doseUnit = "application";
+      }
 
       // Validate schedule-specific fields
       if (med.scheduleType === "times_per_day" && (!med.timesPerDay || med.timesPerDay < 1)) {

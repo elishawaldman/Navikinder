@@ -12,10 +12,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { TimesPerDayPicker } from "@/components/ui/times-per-day-picker";
-import { ArrowLeft, Upload, FileImage, Loader2, X, Plus, ChevronDown, ChevronRight, Bug } from "lucide-react";
+import { ArrowLeft, Upload, FileImage, Loader2, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 
-const doseUnits = ["mg", "ml", "tablets", "capsules", "drops", "sprays", "units", "puffs"];
+const doseUnits = ["mg", "g", "ml", "mL", "tsp", "tbsp", "drops", "puffs", "units", "tablets", "capsules", "ND", "application"];
 const medicationRoutes = ["Oral", "Topical", "Injection", "Inhalation", "Nasal", "Eye", "Ear"];
 
 const medicationSchema = z.object({
@@ -46,14 +46,7 @@ export default function UploadOCR() {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [debugData, setDebugData] = useState<{
-    geminiText?: string;
-    aiResponse?: any;
-    finalMedications?: any[];
-    processingTime?: number;
-    confidence?: number;
-  } | null>(null);
-  const [showDebug, setShowDebug] = useState(false);
+
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -164,14 +157,7 @@ export default function UploadOCR() {
       }
       
       if (result.success) {
-        // Store debug data for troubleshooting
-        setDebugData({
-          geminiText: result.geminiText || "Gemini analysis not available",
-          aiResponse: result.medications,
-          processingTime: result.processingTime,
-          confidence: result.confidence,
-          finalMedications: [] // Will be set below
-        });
+
         // Helper function to generate times based on timesPerDay
         const generateTimesFromCount = (count: number): string[] => {
           if (count === 1) return ["08:00"];
@@ -225,11 +211,7 @@ export default function UploadOCR() {
         
         console.log(`✅ Successfully processed ${formattedMedications.length} medications with ${(result.confidence * 100).toFixed(1)}% confidence`);
         
-        // Update debug data with final medications
-        setDebugData(prev => ({
-          ...prev!,
-          finalMedications: formattedMedications
-        }));
+
         
         form.setValue("medications", formattedMedications);
         setShowResults(true);
@@ -413,85 +395,7 @@ export default function UploadOCR() {
           </Form>
         )}
 
-        {/* Debug Panel */}
-        {debugData && (
-          <Card className="mt-6 border-amber-200 bg-amber-50">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bug className="h-5 w-5 text-amber-600" />
-                  <CardTitle className="text-lg text-amber-800">
-                    Gemini Analysis Debug Information
-                  </CardTitle>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowDebug(!showDebug)}
-                  className="text-amber-700 hover:text-amber-900"
-                >
-                  {showDebug ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                  {showDebug ? "Hide" : "Show"} Debug Details
-                </Button>
-              </div>
-              <div className="text-sm text-amber-700">
-                Processing time: {debugData.processingTime}ms | 
-                Confidence: {((debugData.confidence || 0) * 100).toFixed(1)}% |
-                Gemini found: {debugData.aiResponse?.length || 0} medications |
-                Final mapped: {debugData.finalMedications?.length || 0} medications
-              </div>
-            </CardHeader>
-            
-            {showDebug && (
-              <CardContent className="space-y-4">
-                {/* Gemini Analysis */}
-                <div>
-                  <h4 className="font-semibold text-amber-800 mb-2">1. Gemini Raw Response (Gemini 2.5 Flash Lite)</h4>
-                  <div className="bg-white border rounded-md p-3 max-h-40 overflow-y-auto">
-                    <pre className="text-xs whitespace-pre-wrap text-gray-700">
-                      {debugData.geminiText || "No Gemini response available"}
-                    </pre>
-                  </div>
-                </div>
 
-                {/* Structured Medications */}
-                <div>
-                  <h4 className="font-semibold text-amber-800 mb-2">2. Structured Medications (Gemini Parsed)</h4>
-                  <div className="bg-white border rounded-md p-3 max-h-60 overflow-y-auto">
-                    <pre className="text-xs text-gray-700">
-                      {JSON.stringify(debugData.aiResponse || [], null, 2)}
-                    </pre>
-                  </div>
-                </div>
-
-                {/* Final Form Data */}
-                <div>
-                  <h4 className="font-semibold text-amber-800 mb-2">3. Final Mapped Form Data</h4>
-                  <div className="bg-white border rounded-md p-3 max-h-60 overflow-y-auto">
-                    <pre className="text-xs text-gray-700">
-                      {JSON.stringify(debugData.finalMedications || [], null, 2)}
-                    </pre>
-                  </div>
-                </div>
-
-                {/* Analysis */}
-                <div className="bg-amber-100 border border-amber-200 rounded-md p-3">
-                  <h4 className="font-semibold text-amber-800 mb-2">🔍 Quick Analysis</h4>
-                  <div className="text-sm text-amber-700 space-y-1">
-                    <div>• Gemini Response Length: {(debugData.geminiText || "").length} characters</div>
-                    <div>• Gemini Found: {debugData.aiResponse?.length || 0} medications</div>
-                    <div>• Form Mapped: {debugData.finalMedications?.length || 0} medications</div>
-                    <div>• Data Loss: {((debugData.aiResponse?.length || 0) - (debugData.finalMedications?.length || 0)) !== 0 ? "⚠️ Yes" : "✅ No"}</div>
-                  </div>
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        )}
       </div>
     </div>
   );

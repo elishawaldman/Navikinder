@@ -26,7 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { generateDoseInstances } from "@/lib/doseInstances";
 
 const doseUnits = [
-  "mg", "g", "ml", "mL", "tsp", "tbsp", "drops", "puffs", "units", "tablets", "capsules"
+  "mg", "g", "ml", "mL", "tsp", "tbsp", "drops", "puffs", "units", "tablets", "capsules", "ND", "application"
 ];
 
 const medicationRoutes = [
