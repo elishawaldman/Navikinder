@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -7,11 +7,15 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardContent } from '@/components/DashboardContent';
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 import { PushNotificationSetup } from '@/components/PushNotificationSetup';
+import { EmailReminderModal } from '@/components/EmailReminderModal';
 
 const Overview = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [profileLoading, setProfileLoading] = useState(true);
+  const [reminderModalOpen, setReminderModalOpen] = useState(false);
+  const [reminderDoseInstanceId, setReminderDoseInstanceId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -23,6 +27,19 @@ const Overview = () => {
       checkProfileCompletion();
     }
   }, [user, loading, navigate]);
+
+  // Handle email reminder URL parameter
+  useEffect(() => {
+    if (user && !profileLoading) {
+      const reminderParam = searchParams.get('reminder');
+      if (reminderParam) {
+        setReminderDoseInstanceId(reminderParam);
+        setReminderModalOpen(true);
+        // Clean up URL parameter
+        setSearchParams({});
+      }
+    }
+  }, [user, profileLoading, searchParams, setSearchParams]);
 
   const checkProfileCompletion = async () => {
     try {
@@ -45,6 +62,18 @@ const Overview = () => {
     } finally {
       setProfileLoading(false);
     }
+  };
+
+  const handleReminderModalClose = () => {
+    setReminderModalOpen(false);
+    setReminderDoseInstanceId(null);
+  };
+
+  const handleReminderConfirm = () => {
+    // Optional: Refresh the dashboard content to show updated medication status
+    // This could trigger a refresh of DueMedicationsSection
+    setReminderModalOpen(false);
+    setReminderDoseInstanceId(null);
   };
 
   if (loading || profileLoading) {
@@ -71,6 +100,16 @@ const Overview = () => {
           <DashboardContent />
         </main>
       </div>
+
+      {/* Email Reminder Modal */}
+      {reminderDoseInstanceId && (
+        <EmailReminderModal
+          open={reminderModalOpen}
+          onClose={handleReminderModalClose}
+          doseInstanceId={reminderDoseInstanceId}
+          onConfirm={handleReminderConfirm}
+        />
+      )}
     </SidebarProvider>
   );
 };

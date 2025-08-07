@@ -20,8 +20,10 @@ interface MedicationReminderEmailProps {
   dose_amount: number
   dose_unit: string
   due_datetime: string
+  dose_instance_id: string
   parent_name?: string
   parent_timezone?: string
+  app_domain?: string
 }
 
 export const MedicationReminderEmail = ({
@@ -30,8 +32,10 @@ export const MedicationReminderEmail = ({
   dose_amount,
   dose_unit,
   due_datetime,
+  dose_instance_id,
   parent_name,
   parent_timezone = 'UTC',
+  app_domain = 'navikinder.com',
 }: MedicationReminderEmailProps) => {
   // Format the due time with user's timezone
   const dueTime = new Date(due_datetime).toLocaleTimeString('en-US', {
@@ -122,10 +126,10 @@ export const MedicationReminderEmail = ({
             
             <Section style={ctaSection}>
               <Link
-                href="https://your-app-domain.com/overview"
+                href={`https://${app_domain}/overview?reminder=${dose_instance_id}`}
                 style={button}
               >
-                Open Medication Tracker
+                Record This Medication
               </Link>
             </Section>
             

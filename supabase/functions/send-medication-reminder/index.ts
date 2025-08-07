@@ -47,6 +47,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`📧 Sending reminder for ${child_name}'s ${medication_name} to ${parent_email} (timezone: ${parent_timezone})`)
 
+    // Get app domain from environment or use default
+    const app_domain = Deno.env.get('APP_DOMAIN') || 'navikinder.com';
+
     // Render the React Email template
     const html = await renderAsync(
       React.createElement(MedicationReminderEmail, {
@@ -55,8 +58,10 @@ const handler = async (req: Request): Promise<Response> => {
         dose_amount,
         dose_unit,
         due_datetime,
+        dose_instance_id,
         parent_name,
         parent_timezone,
+        app_domain,
       })
     )
 

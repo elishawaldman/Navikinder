@@ -69,7 +69,7 @@ export function AppSidebar() {
             <img 
               src="/NaviKinder - format logo.png" 
               alt="NaviKinder Healthcare" 
-              className="h-12 w-full object-contain"
+              className="h-16 w-full object-contain"
             />
           ) : (
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white">
