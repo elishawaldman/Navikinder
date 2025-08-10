@@ -83,9 +83,9 @@ const FAQSection = () => {
           <p className="text-lg text-gray-600 mb-6">
             Still have questions? Feel free to get in touch with us today!
           </p>
-          <Button variant="outline" size="lg">
-            Ask A Question
-          </Button>
+          <p className="text-lg font-medium text-brand-blue">
+            support@navikinder.com
+          </p>
         </div>
       </div>
     </section>
