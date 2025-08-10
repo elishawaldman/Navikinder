@@ -25,7 +25,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 const menuItems = [
   { title: "Medication Overview", url: "/overview", icon: Home },
   { title: "New Med Entry", url: "/add-medication", icon: Plus },
-  { title: "Upload & OCR", url: "/upload-ocr", icon: Upload },
+  { title: "AI Image Analysis", url: "/upload-ocr", icon: Upload },
   { title: "Medication History", url: "/history", icon: History },
   { title: "Profile", url: "/profile", icon: User },
   { title: "Settings", url: "/settings", icon: Settings },

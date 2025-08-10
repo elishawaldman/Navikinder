@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, ArrowRight, User, Baby } from "lucide-react";
-import PhoneInput from 'react-phone-number-input';
-import 'react-phone-number-input/style.css';
+// Phone number input temporarily removed until SMS notifications are integrated
 
 interface Child {
   first_name: string;
@@ -26,7 +25,6 @@ const Welcome = () => {
   
   // Personal info
   const [displayName, setDisplayName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState<string | undefined>("");
   
   // Children info
   const [children, setChildren] = useState<Child[]>([{ first_name: "", date_of_birth: "" }]);
@@ -109,7 +107,6 @@ const Welcome = () => {
         .from('profiles')
         .update({
           display_name: displayName.trim(),
-          phone_number: phoneNumber || null,
         })
         .eq('id', user.id);
 
@@ -202,22 +199,7 @@ const Welcome = () => {
                   className="text-base"
                 />
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
-                <PhoneInput
-                  international
-                  countryCallingCodeEditable={false}
-                  defaultCountry="US"
-                  value={phoneNumber}
-                  onChange={setPhoneNumber}
-                  placeholder="Enter your phone number"
-                  className="phone-input"
-                />
-                <p className="text-sm text-muted-foreground">
-                  Used for SMS reminders and notifications. Include your country code.
-                </p>
-              </div>
+
 
               <Button 
                 onClick={handlePersonalInfoNext}

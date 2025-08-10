@@ -403,7 +403,7 @@ export const DashboardContent = forwardRef<DueMedicationsSectionRef>(function Da
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Upload className="h-4 w-4 text-primary" />
                 </div>
-                <span className="text-sm lg:text-base">Upload & OCR</span>
+                <span className="text-sm lg:text-base">AI Image Analysis</span>
               </CardTitle>
               <CardDescription className="text-xs lg:text-sm">
                 Upload prescription photos

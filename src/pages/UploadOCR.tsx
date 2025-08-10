@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +14,8 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { TimesPerDayPicker } from "@/components/ui/times-per-day-picker";
 import { ArrowLeft, Upload, FileImage, Loader2, X, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const doseUnits = ["mg", "g", "ml", "mL", "tsp", "tbsp", "drops", "puffs", "units", "tablets", "capsules", "ND", "application"];
 const medicationRoutes = ["Oral", "Topical", "Injection", "Inhalation", "Nasal", "Eye", "Ear"];
@@ -42,10 +44,13 @@ type FormData = z.infer<typeof formSchema>;
 
 export default function UploadOCR() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [children, setChildren] = useState<Array<{id: string, first_name: string}>>([]);
+  const [childrenLoading, setChildrenLoading] = useState(true);
 
 
   const form = useForm<FormData>({
@@ -71,6 +76,41 @@ export default function UploadOCR() {
     control: form.control,
     name: "medications",
   });
+
+  // Load children on component mount
+  useEffect(() => {
+    const loadChildren = async () => {
+      if (!user) return;
+      
+      try {
+        setChildrenLoading(true);
+        
+        // Use the same pattern as Profile.tsx to fetch children via child_profiles
+        const { data: childrenData, error: childrenError } = await supabase
+          .from('child_profiles')
+          .select(`
+            children (
+              id,
+              first_name
+            )
+          `)
+          .eq('profile_id', user.id);
+
+        if (childrenError) throw childrenError;
+        
+        const childrenList = childrenData?.map(cp => cp.children).filter(Boolean) || [];
+        setChildren(childrenList as Array<{id: string, first_name: string}>);
+        
+      } catch (error) {
+        console.error('Error loading children:', error);
+        toast.error('Failed to load children. Please try again.');
+      } finally {
+        setChildrenLoading(false);
+      }
+    };
+
+    loadChildren();
+  }, [user]);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -252,9 +292,65 @@ export default function UploadOCR() {
   };
 
   const onSubmit = async (data: FormData) => {
-    console.log("Saving medications:", data);
-    toast.success("Medications saved successfully");
-    navigate("/overview");
+    try {
+      console.log("Saving medications:", data);
+      
+      if (!user) {
+        toast.error("User not authenticated");
+        return;
+      }
+
+      for (const medication of data.medications) {
+        // Insert medication
+        const { data: medicationResult, error: medicationError } = await supabase
+          .from('medications')
+          .insert({
+            child_id: medication.childId,
+            name: medication.name,
+            dose_amount: parseFloat(medication.doseAmount),
+            dose_unit: medication.doseUnit,
+            route: medication.route,
+            is_prn: medication.isPRN,
+            start_datetime: medication.startDate?.toISOString() || new Date().toISOString(),
+            notes: medication.notes || null,
+            created_by: user.id,
+          })
+          .select()
+          .single();
+
+        if (medicationError) throw medicationError;
+
+        // If not PRN, create schedule
+        if (!medication.isPRN && medication.scheduleType) {
+          const scheduleData: any = {
+            medication_id: medicationResult.id,
+            rule_type: medication.scheduleType,
+            active_from: medication.startDate?.toISOString() || new Date().toISOString(),
+          };
+
+          if (medication.scheduleType === "every_x_hours") {
+            scheduleData.every_x_hours = medication.everyXHours;
+          } else if (medication.scheduleType === "times_per_day") {
+            scheduleData.times_per_day = medication.timesPerDay;
+            scheduleData.specific_times = medication.specificTimes;
+          } else if (medication.scheduleType === "specific_times") {
+            scheduleData.specific_times = medication.specificTimes;
+          }
+
+          const { error: scheduleError } = await supabase
+            .from('medication_schedules')
+            .insert(scheduleData);
+
+          if (scheduleError) throw scheduleError;
+        }
+      }
+
+      toast.success("Medications saved successfully");
+      navigate("/overview");
+    } catch (error) {
+      console.error("Error saving medications:", error);
+      toast.error("Failed to save medications. Please try again.");
+    }
   };
 
   return (
@@ -270,7 +366,7 @@ export default function UploadOCR() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Upload & OCR</h1>
+            <h1 className="text-2xl font-bold text-foreground">AI Image Analysis</h1>
             <p className="text-muted-foreground">
               Upload a photo of medication labels to automatically extract information
             </p>
@@ -364,6 +460,8 @@ export default function UploadOCR() {
                     form={form}
                     onRemove={() => remove(index)}
                     canRemove={fields.length > 1}
+                    children={children}
+                    childrenLoading={childrenLoading}
                   />
                 ))}
               </div>
@@ -406,11 +504,15 @@ function MedicationCard({
   form,
   onRemove,
   canRemove,
+  children,
+  childrenLoading,
 }: {
   index: number;
   form: any;
   onRemove: () => void;
   canRemove: boolean;
+  children: Array<{id: string, first_name: string}>;
+  childrenLoading: boolean;
 }) {
   const watchIsPRN = form.watch(`medications.${index}.isPRN`);
   const watchScheduleType = form.watch(`medications.${index}.scheduleType`);
@@ -445,8 +547,17 @@ function MedicationCard({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="1">Emma Johnson</SelectItem>
-                  <SelectItem value="2">Liam Johnson</SelectItem>
+                  {childrenLoading ? (
+                    <SelectItem value="" disabled>Loading children...</SelectItem>
+                  ) : children.length === 0 ? (
+                    <SelectItem value="" disabled>No children found</SelectItem>
+                  ) : (
+                    children.map((child) => (
+                      <SelectItem key={child.id} value={child.id}>
+                        {child.first_name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               <FormMessage />
