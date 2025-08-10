@@ -24,7 +24,7 @@ const HeroSection = () => {
           {/* Trust Badge */}
           <div className="flex items-center justify-center space-x-2 bg-blue-100 px-4 py-2 rounded-full mb-8 inline-flex">
             <CheckCircle className="w-4 h-4 text-blue-600" />
-            <span className="text-blue-600 text-sm font-medium">Trusted by thousands of families</span>
+            <span className="text-blue-600 text-sm font-medium">Built by parents, for parents</span>
           </div>
 
           {/* Main Headline */}

@@ -13,7 +13,8 @@ const FeaturesSection = () => {
         "No typing. No errors. Fast, accurate entry.",
         "Track medications, dosages, and times.",
         "Get alerts and mark as 'given' or note why it wasn't."
-      ]
+      ],
+      comingSoon: false
     },
     {
       icon: Activity,
@@ -24,7 +25,8 @@ const FeaturesSection = () => {
       description: "See patterns and understand what works.",
       benefits: [
         "Designed for clarity, not clutter."
-      ]
+      ],
+      comingSoon: true
     },
     {
       icon: Users,
@@ -35,7 +37,8 @@ const FeaturesSection = () => {
       description: "Reduce risk of medication errors.",
       benefits: [
         "Stay connected and informed."
-      ]
+      ],
+      comingSoon: false
     }
   ];
 
@@ -54,7 +57,16 @@ const FeaturesSection = () => {
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
-              <div key={index} className="bg-background p-8 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <div key={index} className="bg-background p-8 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative">
+                {/* Coming Soon Badge */}
+                {feature.comingSoon && (
+                  <div className="absolute top-4 right-4">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      Coming Soon
+                    </span>
+                  </div>
+                )}
+                
                 {/* Icon */}
                 <div className={`w-12 h-12 ${feature.iconBg} rounded-lg flex items-center justify-center mb-6`}>
                   <Icon className={`w-6 h-6 ${feature.iconColor}`} />

@@ -8,7 +8,7 @@ const FAQSection = () => {
   const faqs = [
     {
       question: "How does the photo recognition work?",
-      answer: "Our AI-powered OCR technology can read medication labels, prescription bottles, and hospital discharge lists. Simply take a photo and we'll automatically extract medication names, dosages, and instructions."
+      answer: "Our AI-powered image analysis technology can read medication labels, prescription bottles, and hospital discharge lists. Simply take a photo and we'll automatically extract medication names, dosages, and instructions."
     },
     {
       question: "Is my data secure and private?",
