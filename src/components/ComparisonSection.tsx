@@ -13,11 +13,6 @@ const ComparisonSection = () => {
       others: false
     },
     {
-      feature: "Advanced symptom tracking",
-      navikinder: true,
-      others: false
-    },
-    {
       feature: "Share access between carers",
       navikinder: true,
       others: false

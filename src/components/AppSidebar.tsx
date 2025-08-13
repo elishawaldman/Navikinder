@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Calendar, Plus, Upload, History, LogOut, User, Home, Settings } from "lucide-react";
+import { Calendar, Plus, Upload, History, LogOut, User, Home, Settings, Baby } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,7 @@ const menuItems = [
   { title: "New Med Entry", url: "/add-medication", icon: Plus },
   { title: "AI Image Analysis", url: "/upload-ocr", icon: Upload },
   { title: "Medication History", url: "/history", icon: History },
+  { title: "Add Child", url: "/profile?addChild=1", icon: Baby },
   { title: "Profile", url: "/profile", icon: User },
   { title: "Settings", url: "/settings", icon: Settings },
 ];

@@ -23,11 +23,6 @@ const BenefitsSection = () => {
       description: "Know every dose given—or not."
     },
     {
-      icon: TrendingUp,
-      title: "Enhanced Symptom Tracking",
-      description: "Replace guesswork with clear patterns."
-    },
-    {
       icon: ArrowRightLeft,
       title: "Seamless Transitions",
       description: "Export/import care data across settings."

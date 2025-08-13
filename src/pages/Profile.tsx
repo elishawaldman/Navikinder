@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,6 +50,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const location = useLocation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [children, setChildren] = useState<Child[]>([]);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -83,6 +84,17 @@ const Profile = () => {
       fetchProfileData();
     }
   }, [user, loading, navigate]);
+
+  // Open Add Child dialog when ?addChild=1 is present and then clean the URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const shouldOpenAddChild = params.get('addChild') === '1';
+    if (shouldOpenAddChild) {
+      setEditingChild(null);
+      setAddingChild(true);
+      navigate('/profile', { replace: true });
+    }
+  }, [location.search, navigate]);
 
   const fetchProfileData = async () => {
     try {
