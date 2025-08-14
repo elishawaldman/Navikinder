@@ -34,6 +34,7 @@ interface DoseLog {
   reason_given?: string;
   reason_not_given?: string;
   notes?: string;
+  due_datetime?: string; // Original scheduled time from dose_instances
 }
 
 type SortField = 'given_datetime' | 'medication_name' | 'child_name' | 'amount_given';
@@ -81,7 +82,7 @@ const History = () => {
       
       if (childrenData) setChildren(childrenData);
 
-      // Fetch dose logs with medication and child names
+      // Fetch dose logs with medication and child names, including due_datetime from dose_instances
       const { data: logsData } = await supabase
         .from('dose_logs')
         .select(`
@@ -94,12 +95,34 @@ const History = () => {
           reason_given,
           reason_not_given,
           notes,
+          dose_instance_id,
           medications!inner(name, child_id),
           children!inner(first_name)
         `)
         .order('given_datetime', { ascending: false });
 
       if (logsData) {
+        // Get unique dose instance IDs for fetching due times
+        const doseInstanceIds = logsData
+          .map(log => log.dose_instance_id)
+          .filter(id => id !== null);
+
+        // Fetch due times for dose instances
+        let doseInstancesMap: Record<string, string> = {};
+        if (doseInstanceIds.length > 0) {
+          const { data: doseInstancesData } = await supabase
+            .from('dose_instances')
+            .select('id, due_datetime')
+            .in('id', doseInstanceIds);
+
+          if (doseInstancesData) {
+            doseInstancesMap = doseInstancesData.reduce((acc, instance) => {
+              acc[instance.id] = instance.due_datetime;
+              return acc;
+            }, {} as Record<string, string>);
+          }
+        }
+
         const formattedLogs: DoseLog[] = logsData.map((log: any) => ({
           id: log.id,
           medication_name: log.medications.name,
@@ -112,6 +135,7 @@ const History = () => {
           reason_given: log.reason_given,
           reason_not_given: log.reason_not_given,
           notes: log.notes,
+          due_datetime: log.dose_instance_id ? doseInstancesMap[log.dose_instance_id] || null : null,
         }));
         setDoseLogs(formattedLogs);
         setFilteredLogs(formattedLogs);
@@ -254,13 +278,14 @@ const History = () => {
           log.medication_name,
           log.child_name,
           `${log.amount_given} ${log.unit}`,
+          log.due_datetime ? format(new Date(log.due_datetime), 'MMM dd, yyyy HH:mm') : 'N/A',
           format(new Date(log.given_datetime), 'MMM dd, yyyy HH:mm'),
           log.was_given ? 'Given' : 'Not Given',
           log.was_given ? '' : (log.reason_not_given || '')
         ]);
 
         autoTable(doc, {
-          head: [['Medication', 'Child', 'Dose', 'Date/Time', 'Status', 'Reason']],
+          head: [['Medication', 'Child', 'Dose', 'Due Time', 'Given Time', 'Status', 'Reason']],
           body: scheduledTableData,
           startY: y,
           styles: { fontSize: 8 },
@@ -498,10 +523,19 @@ const History = () => {
                                       <p className="font-medium">{log.amount_given} {log.unit}</p>
                                     </div>
                                     <div>
-                                      <span className="text-muted-foreground">Date/Time:</span>
+                                      <span className="text-muted-foreground">Given Time:</span>
                                       <p className="font-medium">{format(new Date(log.given_datetime), 'MMM dd, HH:mm')}</p>
                                     </div>
                                   </div>
+                                  
+                                  {log.due_datetime && (
+                                    <div className="grid grid-cols-1 gap-3 text-xs">
+                                      <div>
+                                        <span className="text-muted-foreground">Due Time:</span>
+                                        <p className="font-medium">{format(new Date(log.due_datetime), 'MMM dd, HH:mm')}</p>
+                                      </div>
+                                    </div>
+                                  )}
                                   
                                   {!log.was_given && log.reason_not_given && (
                                     <div className="pt-2 border-t">
@@ -548,12 +582,13 @@ const History = () => {
                                           {getSortIcon('amount_given')}
                                         </div>
                                       </TableHead>
+                                      <TableHead className="whitespace-nowrap">Due Time</TableHead>
                                       <TableHead 
                                         className="cursor-pointer hover:bg-muted/50 whitespace-nowrap"
                                         onClick={() => handleSort('given_datetime')}
                                       >
                                         <div className="flex items-center gap-2">
-                                          Date/Time
+                                          Given Time
                                           {getSortIcon('given_datetime')}
                                         </div>
                                       </TableHead>
@@ -570,6 +605,13 @@ const History = () => {
                                         <TableCell className="whitespace-nowrap">{log.child_name}</TableCell>
                                         <TableCell className="whitespace-nowrap">
                                           {log.amount_given} {log.unit}
+                                        </TableCell>
+                                        <TableCell className="whitespace-nowrap">
+                                          {log.due_datetime ? (
+                                            format(new Date(log.due_datetime), 'MMM dd, yyyy HH:mm')
+                                          ) : (
+                                            <span className="text-muted-foreground">N/A</span>
+                                          )}
                                         </TableCell>
                                         <TableCell className="whitespace-nowrap">
                                           {format(new Date(log.given_datetime), 'MMM dd, yyyy HH:mm')}

@@ -375,59 +375,7 @@ export const DashboardContent = forwardRef<DueMedicationsSectionRef>(function Da
 
       {/* Main Content */}
       <div className="p-4 lg:p-6 space-y-6 max-w-full overflow-x-hidden">
-        {/* Quick Actions - Mobile Optimized */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
-          <Card 
-            className="cursor-pointer hover:shadow-md transition-all duration-200 active:scale-95" 
-            onClick={handleAddNewMed}
-          >
-            <CardHeader className="pb-3 pt-4">
-              <CardTitle className="text-base lg:text-lg flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Plus className="h-4 w-4 text-primary" />
-                </div>
-                <span className="text-sm lg:text-base">Add Medication</span>
-              </CardTitle>
-              <CardDescription className="text-xs lg:text-sm">
-                Add a new medication to your schedule
-              </CardDescription>
-            </CardHeader>
-          </Card>
 
-          <Card 
-            className="cursor-pointer hover:shadow-md transition-all duration-200 active:scale-95" 
-            onClick={handleUploadPhoto}
-          >
-            <CardHeader className="pb-3 pt-4">
-              <CardTitle className="text-base lg:text-lg flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Upload className="h-4 w-4 text-primary" />
-                </div>
-                <span className="text-sm lg:text-base">AI Image Analysis</span>
-              </CardTitle>
-              <CardDescription className="text-xs lg:text-sm">
-                Upload prescription photos
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card 
-            className="cursor-pointer hover:shadow-md transition-all duration-200 active:scale-95 sm:col-span-2 lg:col-span-1" 
-            onClick={handleViewHistory}
-          >
-            <CardHeader className="pb-3 pt-4">
-              <CardTitle className="text-base lg:text-lg flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <History className="h-4 w-4 text-primary" />
-                </div>
-                <span className="text-sm lg:text-base">View History</span>
-              </CardTitle>
-              <CardDescription className="text-xs lg:text-sm">
-                Review medication history
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
 
         {/* Due Medications Section */}
         <DueMedicationsSection ref={ref} />
@@ -595,6 +543,9 @@ export const DashboardContent = forwardRef<DueMedicationsSectionRef>(function Da
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                           <CardDescription className="text-xs lg:text-sm flex-1">
                             {med.dose_amount} {med.dose_unit} • As needed
+                            {med.schedule?.every_x_hours && (
+                              <span className="text-muted-foreground"> (every {med.schedule.every_x_hours} hours)</span>
+                            )}
                           </CardDescription>
                           <Badge variant="secondary" className="text-xs w-fit">
                             {med.child_name}
