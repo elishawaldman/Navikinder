@@ -11,6 +11,16 @@ A comprehensive medication tracking application designed to help parents and car
 - 🔒 **Secure & Private**: Built with security-first approach using Supabase
 - 📱 **PWA Support**: Works offline and can be installed as a mobile app
 
+### Push Notification System
+
+The application includes a comprehensive push notification system that has been implemented with:
+- **Browser Compatibility**: Supports modern browsers with service worker integration
+- **iOS Support**: Special handling for iOS devices with PWA installation detection
+- **Testing Tools**: Built-in notification testing functionality for debugging
+- **Supabase Integration**: Backend edge functions for sending notifications
+
+*Note: The push notification setup card on the overview page is currently commented out but can be re-enabled by uncommenting the code in `src/components/PushNotificationSetup.tsx` if you want to test the functionality.*
+
 ## Technology Stack
 
 - **Frontend**: React 18 with TypeScript
