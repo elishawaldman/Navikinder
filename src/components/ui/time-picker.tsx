@@ -22,6 +22,18 @@ export function TimePicker({ value, onChange, className }: TimePickerProps) {
   const [newMinute, setNewMinute] = useState("");
   const [newPeriod, setNewPeriod] = useState("");
 
+  // Ensure value is always an array of TimeEntry objects with valid time strings
+  const safeValue = React.useMemo(() => {
+    if (!Array.isArray(value)) return [];
+    return value.filter(entry => 
+      entry && 
+      typeof entry === 'object' && 
+      typeof entry.id === 'string' && 
+      typeof entry.time === 'string' &&
+      entry.time.includes(':')
+    );
+  }, [value]);
+
   const addTime = () => {
     if (!newHour || !newMinute || !newPeriod) return;
     
@@ -37,17 +49,23 @@ export function TimePicker({ value, onChange, className }: TimePickerProps) {
       time: timeString
     };
     
-    onChange([...value, newEntry]);
+    onChange([...safeValue, newEntry]);
     setNewHour("");
     setNewMinute("");
     setNewPeriod("");
   };
 
   const removeTime = (id: string) => {
-    onChange(value.filter(entry => entry.id !== id));
+    onChange(safeValue.filter(entry => entry.id !== id));
   };
 
   const formatDisplayTime = (time: string) => {
+    // Ensure time is a string
+    if (typeof time !== 'string') {
+      console.error('formatDisplayTime received non-string value:', time);
+      return 'Invalid Time';
+    }
+    
     const [hours, minutes] = time.split(':');
     const hour24 = parseInt(hours, 10);
     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
@@ -114,11 +132,11 @@ export function TimePicker({ value, onChange, className }: TimePickerProps) {
         </div>
       </div>
 
-      {value.length > 0 && (
+      {safeValue.length > 0 && (
         <div className="space-y-2">
           <Label>Selected Times</Label>
           <div className="grid gap-2">
-            {value.map((entry) => (
+            {safeValue.map((entry) => (
               <Card key={entry.id} className="p-3 flex items-center justify-between">
                 <span className="font-medium">
                   {formatDisplayTime(entry.time)}

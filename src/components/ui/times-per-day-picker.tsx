@@ -27,7 +27,7 @@ export function TimesPerDayPicker({ count, value, onChange, className }: TimesPe
           
           <div className="flex gap-1">
             <Select
-              value={existingTime ? getHour12(existingTime.time) : ""}
+              value={existingTime && typeof existingTime.time === 'string' ? getHour12(existingTime.time) : ""}
               onValueChange={(hour) => updateTime(i, hour, 'hour')}
             >
               <SelectTrigger className="w-16">
@@ -46,7 +46,7 @@ export function TimesPerDayPicker({ count, value, onChange, className }: TimesPe
             </Select>
             
             <Select
-              value={existingTime ? getMinutes(existingTime.time) : ""}
+              value={existingTime && typeof existingTime.time === 'string' ? getMinutes(existingTime.time) : ""}
               onValueChange={(minute) => updateTime(i, minute, 'minute')}
             >
               <SelectTrigger className="w-16">
@@ -61,10 +61,10 @@ export function TimesPerDayPicker({ count, value, onChange, className }: TimesPe
               </SelectContent>
             </Select>
             
-            <Select
-              value={existingTime ? getPeriod(existingTime.time) : ""}
-              onValueChange={(period) => updateTime(i, period, 'period')}
-            >
+                      <Select
+            value={existingTime && typeof existingTime.time === 'string' ? getPeriod(existingTime.time) : ""}
+            onValueChange={(period) => updateTime(i, period, 'period')}
+          >
               <SelectTrigger className="w-16">
                 <SelectValue placeholder="AM/PM" />
               </SelectTrigger>
@@ -81,6 +81,10 @@ export function TimesPerDayPicker({ count, value, onChange, className }: TimesPe
   };
 
   const getHour12 = (time24: string) => {
+    if (typeof time24 !== 'string' || !time24.includes(':')) {
+      console.error('getHour12 received invalid time:', time24);
+      return "12";
+    }
     const [hours] = time24.split(':');
     const hour24 = parseInt(hours, 10);
     const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
@@ -88,11 +92,19 @@ export function TimesPerDayPicker({ count, value, onChange, className }: TimesPe
   };
 
   const getMinutes = (time24: string) => {
+    if (typeof time24 !== 'string' || !time24.includes(':')) {
+      console.error('getMinutes received invalid time:', time24);
+      return "00";
+    }
     const [, minutes] = time24.split(':');
-    return minutes;
+    return minutes || "00";
   };
 
   const getPeriod = (time24: string) => {
+    if (typeof time24 !== 'string' || !time24.includes(':')) {
+      console.error('getPeriod received invalid time:', time24);
+      return "AM";
+    }
     const [hours] = time24.split(':');
     const hour24 = parseInt(hours, 10);
     return hour24 < 12 ? 'AM' : 'PM';
@@ -111,7 +123,14 @@ export function TimesPerDayPicker({ count, value, onChange, className }: TimesPe
 
     const existingTime = updatedTimes[slotIndex];
     const currentTime = existingTime.time;
-    const [currentHours, currentMinutes] = currentTime.split(':');
+    
+    // Validate current time format
+    if (typeof currentTime !== 'string' || !currentTime.includes(':')) {
+      console.error('updateTime received invalid currentTime:', currentTime);
+      existingTime.time = "12:00"; // fallback
+    }
+    
+    const [currentHours, currentMinutes] = existingTime.time.split(':');
     
     let newHour24 = parseInt(currentHours, 10);
     let newMinute = currentMinutes;

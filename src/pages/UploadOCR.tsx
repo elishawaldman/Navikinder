@@ -311,11 +311,26 @@ export default function UploadOCR() {
           // Generate times based on scheduleType
           if (med.scheduleType === "times_per_day") {
             const times = generateTimesFromCount(timesPerDayCount);
-            timesPerDayTimes = times.map((time, idx) => ({ id: idx.toString(), time }));
+            timesPerDayTimes = times.map((time, idx) => ({ 
+              id: `tpd_${idx}`, 
+              time: typeof time === 'string' ? time : '08:00' 
+            }));
           } else if (med.scheduleType === "specific_times") {
-            const times = med.specificTimes || ["08:00"];
-            specificTimes = times.map((time: string, idx: number) => ({ id: idx.toString(), time }));
+            const times = Array.isArray(med.specificTimes) ? med.specificTimes : [{ id: "0", time: "08:00" }];
+            specificTimes = times.map((timeEntry: any, idx: number) => {
+              // Handle both string and object formats from Gemini
+              if (typeof timeEntry === 'string') {
+                return { id: `st_${idx}`, time: timeEntry };
+              } else if (timeEntry && typeof timeEntry === 'object' && timeEntry.time) {
+                return { id: `st_${idx}`, time: timeEntry.time };
+              } else {
+                return { id: `st_${idx}`, time: '08:00' };
+              }
+            });
           }
+
+          // For PRN medications, use the provided schedule hours
+          const prnScheduleHours = med.isPRN ? (med.prnScheduleHours || 6) : 6;
 
           return {
             childId: "",
@@ -328,7 +343,7 @@ export default function UploadOCR() {
             isPrn: med.isPRN || false,
             scheduleType: med.scheduleType || "every_x_hours",
             scheduleDetail: (med.everyXHours || 8).toString(),
-            prnScheduleHours: med.isPRN ? (med.everyXHours || 6) : 6,
+            prnScheduleHours: prnScheduleHours,
             timesPerDayCount: timesPerDayCount,
             timesPerDayTimes: timesPerDayTimes,
             specificTimes: specificTimes,
@@ -336,8 +351,7 @@ export default function UploadOCR() {
         });
         
         console.log(`✅ Successfully processed ${formattedMedications.length} medications with ${(result.confidence * 100).toFixed(1)}% confidence`);
-        
-
+        console.log('Formatted medications data:', formattedMedications);
         
         form.setValue("medications", formattedMedications);
         setShowResults(true);
