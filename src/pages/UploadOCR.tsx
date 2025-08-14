@@ -5,35 +5,117 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { TimesPerDayPicker } from "@/components/ui/times-per-day-picker";
+import { TimePicker } from "@/components/ui/time-picker";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { ArrowLeft, Upload, FileImage, Loader2, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 const doseUnits = ["mg", "g", "ml", "mL", "tsp", "tbsp", "drops", "puffs", "units", "tablets", "capsules", "ND", "application"];
-const medicationRoutes = ["Oral", "Topical", "Injection", "Inhalation", "Nasal", "Eye", "Ear"];
+const medicationRoutes = [
+  "Oral",
+  "Via nasogastic tube", 
+  "Via nasojejeunal tube",
+  "Via gastric tube",
+  "Sublingual",
+  "Subcutaneous", 
+  "Intravenous",
+  "Transdermal"
+];
 
 const medicationSchema = z.object({
   childId: z.string().min(1, "Please select a child"),
   name: z.string().min(1, "Medication name is required"),
-  doseAmount: z.string().min(1, "Dose amount is required"),
-  doseUnit: z.string().min(1, "Dose unit is required"),
-  route: z.string().min(1, "Route is required"),
-  isPRN: z.boolean().default(false),
-  startDate: z.date().optional(),
-  startTime: z.string().optional(),
-  scheduleType: z.enum(["every_x_hours", "times_per_day", "specific_times"]).optional(),
-  everyXHours: z.number().optional(),
-  timesPerDay: z.number().optional(),
-  specificTimes: z.array(z.string()).optional(),
+  doseAmount: z.number().min(0.01, "Dose amount must be greater than 0"),
+  doseUnit: z.string().min(1, "Please select a dose unit"),
+  route: z.string().min(1, "Please select a route of administration"),
+  startDateTime: z.date(),
   notes: z.string().optional(),
+  isPrn: z.boolean(),
+  scheduleType: z.enum(["every_x_hours", "times_per_day", "specific_times"]).optional(),
+  scheduleDetail: z.string().optional(),
+  prnScheduleHours: z.number().optional(),
+  timesPerDayCount: z.number().optional(),
+  timesPerDayTimes: z.array(z.object({
+    id: z.string(),
+    time: z.string()
+  })).optional(),
+  specificTimes: z.array(z.object({
+    id: z.string(),
+    time: z.string()
+  })).optional(),
+}).superRefine((data, ctx) => {
+  if (data.isPrn) {
+    // Validate PRN schedule fields
+    if (!data.prnScheduleHours || data.prnScheduleHours <= 0 || data.prnScheduleHours > 24) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Please enter a valid number of hours (1-24) for PRN schedule",
+        path: ["prnScheduleHours"],
+      });
+    }
+  } else {
+    // Validate schedule fields for non-PRN medications
+    if (!data.scheduleType) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Schedule type is required for scheduled medications",
+        path: ["scheduleType"],
+      });
+    }
+    
+    // Validate based on schedule type
+    if (data.scheduleType === "every_x_hours") {
+      if (!data.scheduleDetail || data.scheduleDetail.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Schedule details are required for scheduled medications",
+          path: ["scheduleDetail"],
+        });
+      } else {
+        const hours = parseFloat(data.scheduleDetail.trim());
+        if (isNaN(hours) || hours <= 0 || hours > 24) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Please enter a valid number of hours (1-24)",
+            path: ["scheduleDetail"],
+          });
+        }
+      }
+    } else if (data.scheduleType === "times_per_day") {
+      if (!data.timesPerDayCount || data.timesPerDayCount <= 0 || data.timesPerDayCount > 5) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Please select a valid number of times per day (1-5)",
+          path: ["timesPerDayCount"],
+        });
+      }
+      if (!data.timesPerDayTimes || data.timesPerDayTimes.length !== data.timesPerDayCount) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Please set a time for each dose",
+          path: ["timesPerDayTimes"],
+        });
+      }
+    } else if (data.scheduleType === "specific_times") {
+      if (!data.specificTimes || data.specificTimes.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Please add at least one time for specific times schedule",
+          path: ["specificTimes"],
+        });
+      }
+    }
+  }
 });
 
 const formSchema = z.object({
@@ -59,15 +141,18 @@ export default function UploadOCR() {
       medications: [{
         childId: "",
         name: "",
-        doseAmount: "",
-        doseUnit: "mg",
-        route: "Oral",
-        isPRN: false,
-        scheduleType: "every_x_hours",
-        everyXHours: 8,
-        timesPerDay: 2,
-        specificTimes: ["08:00"],
+        doseAmount: 0,
+        doseUnit: "",
+        route: "",
+        startDateTime: new Date(),
         notes: "",
+        isPrn: false,
+        scheduleType: "every_x_hours",
+        scheduleDetail: "",
+        prnScheduleHours: 6,
+        timesPerDayCount: 1,
+        timesPerDayTimes: [],
+        specificTimes: [],
       }],
     },
   });
@@ -219,33 +304,34 @@ export default function UploadOCR() {
 
         // Map AI response to form schema
         const formattedMedications = result.medications.map((med: any) => {
-          const timesPerDay = med.timesPerDay || 2;
-          let specificTimes: string[];
+          const timesPerDayCount = med.timesPerDay || 1;
+          let timesPerDayTimes: Array<{id: string, time: string}> = [];
+          let specificTimes: Array<{id: string, time: string}> = [];
 
-          // Generate specificTimes based on scheduleType
+          // Generate times based on scheduleType
           if (med.scheduleType === "times_per_day") {
-            specificTimes = generateTimesFromCount(timesPerDay);
+            const times = generateTimesFromCount(timesPerDayCount);
+            timesPerDayTimes = times.map((time, idx) => ({ id: idx.toString(), time }));
           } else if (med.scheduleType === "specific_times") {
-            specificTimes = med.specificTimes || ["08:00"];
-          } else {
-            // For every_x_hours, just set a default start time
-            specificTimes = ["08:00"];
+            const times = med.specificTimes || ["08:00"];
+            specificTimes = times.map((time: string, idx: number) => ({ id: idx.toString(), time }));
           }
 
           return {
             childId: "",
             name: med.name,
-            doseAmount: med.doseAmount,
-            doseUnit: med.doseUnit,
-            route: med.route,
-            isPRN: med.isPRN,
-            startDate: new Date(),
-            startTime: "08:00",
-            scheduleType: med.scheduleType,
-            everyXHours: med.everyXHours || 8,
-            timesPerDay: timesPerDay,
-            specificTimes: specificTimes,
+            doseAmount: parseFloat(med.doseAmount) || 0,
+            doseUnit: med.doseUnit || "",
+            route: med.route || "",
+            startDateTime: new Date(),
             notes: med.notes || "",
+            isPrn: med.isPRN || false,
+            scheduleType: med.scheduleType || "every_x_hours",
+            scheduleDetail: (med.everyXHours || 8).toString(),
+            prnScheduleHours: med.isPRN ? (med.everyXHours || 6) : 6,
+            timesPerDayCount: timesPerDayCount,
+            timesPerDayTimes: timesPerDayTimes,
+            specificTimes: specificTimes,
           };
         });
         
@@ -279,15 +365,18 @@ export default function UploadOCR() {
     append({
       childId: "",
       name: "",
-      doseAmount: "",
-      doseUnit: "mg",
-      route: "Oral",
-      isPRN: false,
-      scheduleType: "every_x_hours",
-      everyXHours: 8,
-      timesPerDay: 2,
-      specificTimes: ["08:00"],
+      doseAmount: 0,
+      doseUnit: "",
+      route: "",
+      startDateTime: new Date(),
       notes: "",
+      isPrn: false,
+      scheduleType: "every_x_hours",
+      scheduleDetail: "",
+      prnScheduleHours: 6,
+      timesPerDayCount: 1,
+      timesPerDayTimes: [],
+      specificTimes: [],
     });
   };
 
@@ -307,11 +396,11 @@ export default function UploadOCR() {
           .insert({
             child_id: medication.childId,
             name: medication.name,
-            dose_amount: parseFloat(medication.doseAmount),
+            dose_amount: medication.doseAmount,
             dose_unit: medication.doseUnit,
             route: medication.route,
-            is_prn: medication.isPRN,
-            start_datetime: medication.startDate?.toISOString() || new Date().toISOString(),
+            is_prn: medication.isPrn,
+            start_datetime: medication.startDateTime.toISOString(),
             notes: medication.notes || null,
             created_by: user.id,
           })
@@ -320,21 +409,31 @@ export default function UploadOCR() {
 
         if (medicationError) throw medicationError;
 
-        // If not PRN, create schedule
-        if (!medication.isPRN && medication.scheduleType) {
+        // Create schedule for both PRN and non-PRN medications
+        if (medication.isPrn || medication.scheduleType) {
           const scheduleData: any = {
             medication_id: medicationResult.id,
-            rule_type: medication.scheduleType,
-            active_from: medication.startDate?.toISOString() || new Date().toISOString(),
+            rule_type: medication.isPrn ? "every_x_hours" : medication.scheduleType,
+            active_from: medication.startDateTime.toISOString(),
           };
 
-          if (medication.scheduleType === "every_x_hours") {
-            scheduleData.every_x_hours = medication.everyXHours;
+          // Parse schedule details based on type
+          if (medication.isPrn) {
+            // For PRN medications, use the prnScheduleHours
+            scheduleData.every_x_hours = medication.prnScheduleHours;
+          } else if (medication.scheduleType === "every_x_hours") {
+            scheduleData.every_x_hours = parseInt(medication.scheduleDetail!, 10);
           } else if (medication.scheduleType === "times_per_day") {
-            scheduleData.times_per_day = medication.timesPerDay;
-            scheduleData.specific_times = medication.specificTimes;
+            scheduleData.times_per_day = medication.timesPerDayCount;
+            // Store the specific times for times_per_day
+            if (medication.timesPerDayTimes && medication.timesPerDayTimes.length > 0) {
+              scheduleData.specific_times = medication.timesPerDayTimes.map((entry) => entry.time);
+            }
           } else if (medication.scheduleType === "specific_times") {
-            scheduleData.specific_times = medication.specificTimes;
+            // Convert TimeEntry[] to string array for database storage
+            if (medication.specificTimes && medication.specificTimes.length > 0) {
+              scheduleData.specific_times = medication.specificTimes.map((entry) => entry.time);
+            }
           }
 
           const { error: scheduleError } = await supabase
@@ -514,8 +613,9 @@ function MedicationCard({
   children: Array<{id: string, first_name: string}>;
   childrenLoading: boolean;
 }) {
-  const watchIsPRN = form.watch(`medications.${index}.isPRN`);
-  const watchScheduleType = form.watch(`medications.${index}.scheduleType`);
+  const isPrn = form.watch(`medications.${index}.isPrn`);
+  const scheduleType = form.watch(`medications.${index}.scheduleType`);
+  const timesPerDayCount = form.watch(`medications.${index}.timesPerDayCount`) || 1;
 
   return (
     <Card>
@@ -587,9 +687,15 @@ function MedicationCard({
             name={`medications.${index}.doseAmount`}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Dose Amount</FormLabel>
+                <FormLabel>Dose Amount *</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., 250" {...field} />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="5"
+                    {...field}
+                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -600,11 +706,11 @@ function MedicationCard({
             name={`medications.${index}.doseUnit`}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Unit</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <FormLabel>Unit *</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select unit" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -621,17 +727,17 @@ function MedicationCard({
           />
         </div>
 
-        {/* Route */}
+        {/* Route of Administration */}
         <FormField
           control={form.control}
           name={`medications.${index}.route`}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Route</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+              <FormLabel>Route of Administration *</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select route of administration" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -650,14 +756,16 @@ function MedicationCard({
         {/* PRN Toggle */}
         <FormField
           control={form.control}
-          name={`medications.${index}.isPRN`}
+          name={`medications.${index}.isPrn`}
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <FormLabel className="text-base">PRN (As Needed)</FormLabel>
-                <div className="text-sm text-muted-foreground">
-                  This medication is taken only when needed
-                </div>
+                <FormLabel className="text-base">
+                  Is this a PRN (as-needed) medication?
+                </FormLabel>
+                <FormDescription>
+                  PRN medications are taken only when needed, with a minimum time interval between doses
+                </FormDescription>
               </div>
               <FormControl>
                 <Switch
@@ -669,162 +777,193 @@ function MedicationCard({
           )}
         />
 
-        {/* Schedule Section - Only show if not PRN */}
-        {!watchIsPRN && (
-          <>
-            {/* Start Date and Time */}
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name={`medications.${index}.startDate`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Date</FormLabel>
-                    <FormControl>
-                      <DateTimePicker
-                        value={field.value}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name={`medications.${index}.startTime`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Dose Time</FormLabel>
-                    <FormControl>
-                      <Input type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+        {/* Schedule Fields - Always show */}
+        <div className="space-y-4 rounded-lg border p-4">
+          <h3 className="font-medium">Medication Schedule</h3>
+          
+          {/* Start Date/Time */}
+          <FormField
+            control={form.control}
+            name={`medications.${index}.startDateTime`}
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Start Date & Time *</FormLabel>
+                <FormControl>
+                  <DateTimePicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Pick a date and time"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            {/* Schedule Type */}
+          {isPrn ? (
+            // PRN Schedule Fields
             <FormField
               control={form.control}
-              name={`medications.${index}.scheduleType`}
+              name={`medications.${index}.prnScheduleHours`}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Schedule Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="every_x_hours">Every X Hours</SelectItem>
-                      <SelectItem value="times_per_day">Times Per Day</SelectItem>
-                      <SelectItem value="specific_times">Specific Times</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Every X hours as needed *</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="1"
+                      min="1"
+                      max="24"
+                      placeholder="e.g., 6"
+                      value={field.value || ""}
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Minimum hours between PRN doses (1-24 hours)
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            {/* Schedule Details */}
-            {watchScheduleType === "every_x_hours" && (
+          ) : (
+            // Regular Schedule Fields
+            <>
               <FormField
                 control={form.control}
-                name={`medications.${index}.everyXHours`}
+                name={`medications.${index}.scheduleType`}
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Every X Hours</FormLabel>
+                  <FormItem className="space-y-3">
+                    <FormLabel>Schedule Type *</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="24"
-                        value={field.value}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
-                      />
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="every_x_hours" id={`every_x_hours_${index}`} />
+                          <Label htmlFor={`every_x_hours_${index}`}>Every X hours</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="times_per_day" id={`times_per_day_${index}`} />
+                          <Label htmlFor={`times_per_day_${index}`}>Times per day</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="specific_times" id={`specific_times_${index}`} />
+                          <Label htmlFor={`specific_times_${index}`}>Specific times</Label>
+                        </div>
+                      </RadioGroup>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
 
-            {watchScheduleType === "times_per_day" && (
-              <FormField
-                control={form.control}
-                name={`medications.${index}.specificTimes`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Times Per Day</FormLabel>
-                    <FormControl>
-                      <TimesPerDayPicker
-                        count={form.watch(`medications.${index}.timesPerDay`) || 2}
-                        value={field.value?.map((time, idx) => ({ id: idx.toString(), time })) || []}
-                        onChange={(times) => field.onChange(times.map(t => t.time))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+              {scheduleType === "every_x_hours" && (
+                <FormField
+                  control={form.control}
+                  name={`medications.${index}.scheduleDetail`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Schedule Details *</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g., 8 (every 8 hours)"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Enter the number of hours between doses
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
-            {watchScheduleType === "specific_times" && (
-              <FormField
-                control={form.control}
-                name={`medications.${index}.specificTimes`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Specific Times</FormLabel>
-                    <FormControl>
-                      <div className="space-y-2">
-                        {field.value?.map((time, timeIndex) => (
-                          <div key={timeIndex} className="flex gap-2">
-                            <Input
-                              type="time"
-                              value={time}
-                              onChange={(e) => {
-                                const newTimes = [...(field.value || [])];
-                                newTimes[timeIndex] = e.target.value;
-                                field.onChange(newTimes);
-                              }}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() => {
-                                const newTimes = field.value?.filter((_, i) => i !== timeIndex);
-                                field.onChange(newTimes);
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            const newTimes = [...(field.value || []), "08:00"];
-                            field.onChange(newTimes);
-                          }}
+              {scheduleType === "times_per_day" && (
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name={`medications.${index}.timesPerDayCount`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>How many times per day? *</FormLabel>
+                        <Select 
+                          onValueChange={(value) => {
+                            const count = parseInt(value);
+                            field.onChange(count);
+                            // Reset times when count changes
+                            form.setValue(`medications.${index}.timesPerDayTimes`, []);
+                          }} 
+                          defaultValue={field.value?.toString()}
                         >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Time
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-          </>
-        )}
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select number of times" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {[1, 2, 3, 4, 5].map((num) => (
+                              <SelectItem key={num} value={num.toString()}>
+                                {num} time{num > 1 ? 's' : ''} per day
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name={`medications.${index}.timesPerDayTimes`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Set times for each dose *</FormLabel>
+                        <FormControl>
+                          <TimesPerDayPicker
+                            count={timesPerDayCount}
+                            value={field.value || []}
+                            onChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Set the specific time for each dose
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+
+              {scheduleType === "specific_times" && (
+                <FormField
+                  control={form.control}
+                  name={`medications.${index}.specificTimes`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Specific Times *</FormLabel>
+                      <FormControl>
+                        <TimePicker
+                          value={field.value || []}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Add specific times when this medication should be taken
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </>
+          )}
+        </div>
 
         {/* Notes */}
         <FormField

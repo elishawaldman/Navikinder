@@ -13,14 +13,15 @@ interface OCRRequest {
 
 interface MedicationData {
   name: string;
-  doseAmount: string;
+  doseAmount: number;
   doseUnit: string;
   route: string;
   isPRN: boolean;
   scheduleType: "every_x_hours" | "times_per_day" | "specific_times";
   everyXHours?: number;
   timesPerDay?: number;
-  specificTimes?: string[];
+  specificTimes?: Array<{id: string, time: string}>;
+  prnScheduleHours?: number;
   notes?: string;
   confidence: number;
 }
@@ -135,47 +136,64 @@ IMPORTANT INSTRUCTIONS:
 - Prioritize dosage information from "Give..." instructions over medication label dosages
 - Look for actual administration instructions, not just the medication strength
 
+MEDICATION ROUTES (use exact match):
+- "Oral" (by mouth, swallow, oral administration)
+- "Via nasogastric tube" (NG tube, nasogastric)
+- "Via nasojejeunal tube" (NJ tube, nasojejeunal)
+- "Via gastric tube" (G-tube, gastric tube)
+- "Sublingual" (under tongue)
+- "Subcutaneous" (under skin, SC, subcut)
+- "Intravenous" (IV, into vein)
+- "Transdermal" (skin patch, topical patch)
+
 SPECIAL HANDLING FOR TOPICAL MEDICATIONS:
 - For topical medications (creams, ointments): percentages like "1%" are part of the medication NAME
 - Examples: "hydrocortisone 1%", "betamethasone 0.1%" - keep the percentage in the name
-- For topical applications: use doseAmount: "1" and doseUnit: "application" or "ND"
-- "Apply to affected area" = Topical route
+- For topical applications: use doseAmount: 1 and doseUnit: "application" or "ND"
+- "Apply to affected area" = Use "Transdermal" route
+
+PRN (AS-NEEDED) vs SCHEDULED MEDICATIONS:
+- PRN medications: Set isPRN: true and provide prnScheduleHours (minimum hours between doses)
+- Scheduled medications: Set isPRN: false and provide regular schedule
 
 Extract the following for each medication:
 1. Medication name (clean, but include % for topical medications)  
-2. Dose amount (prioritize from "Give..." text, then from medication label, use "1" for topical applications)
-3. Dose unit (mg, ml, tablet, capsule, application, ND, etc.)
-4. Route of administration (Oral, Topical, Injection, etc.)
+2. Dose amount (numeric value, prioritize from "Give..." text, use 1 for topical applications)
+3. Dose unit (mg, g, ml, mL, tsp, tbsp, drops, puffs, units, tablets, capsules, ND, application)
+4. Route of administration (use exact routes from list above)
 5. Whether it's PRN (as needed) or scheduled
 6. Schedule type and frequency
 
 Handle these medical abbreviations:
-- "TWICE a day", BID/bid = times_per_day: 2
-- "ONCE a day", "Daily", qd/QD = times_per_day: 1  
-- "TID/tid" = times_per_day: 3
-- "QID/qid" = times_per_day: 4
-- PRN/prn = isPRN: true
-- "Every X hours" or "qXh" = every_x_hours: X
-- "12-hour gap between doses" = every_x_hours: 12
-- "At Night", "bedtime" = specific_times: ["22:00"]
-- "In the morning", "with breakfast" = specific_times: ["08:00"]
-- "Daily at lunch" = specific_times: ["12:00"]
-- "At 18:00 and 23:00" = specific_times: ["18:00", "23:00"]
+- PRN/prn/"as needed"/"when needed" = isPRN: true, prnScheduleHours: 4-8 (typical interval)
+- "TWICE a day", BID/bid = isPRN: false, scheduleType: "times_per_day", timesPerDay: 2
+- "ONCE a day", "Daily", qd/QD = isPRN: false, scheduleType: "times_per_day", timesPerDay: 1
+- "TID/tid" = isPRN: false, scheduleType: "times_per_day", timesPerDay: 3
+- "QID/qid" = isPRN: false, scheduleType: "times_per_day", timesPerDay: 4
+- "Every X hours" or "qXh" = isPRN: false, scheduleType: "every_x_hours", everyXHours: X
+- "12-hour gap between doses" = isPRN: false, scheduleType: "every_x_hours", everyXHours: 12
+- "At Night", "bedtime" = isPRN: false, scheduleType: "specific_times", specificTimes: [{"id": "0", "time": "22:00"}]
+- "In the morning", "with breakfast" = isPRN: false, scheduleType: "specific_times", specificTimes: [{"id": "0", "time": "08:00"}]
+- "Daily at lunch" = isPRN: false, scheduleType: "specific_times", specificTimes: [{"id": "0", "time": "12:00"}]
+- "At 18:00 and 23:00" = isPRN: false, scheduleType: "specific_times", specificTimes: [{"id": "0", "time": "18:00"}, {"id": "1", "time": "23:00"}]
 
 Return ONLY a valid JSON array with this exact structure:
 [{
   "name": "medication name (include % for topical, clean otherwise)",
-  "doseAmount": "numeric amount from Give... instruction or '1' for topical",
-  "doseUnit": "mg|ml|tablet|capsule|application|ND|etc.",
-  "route": "Oral|Topical|Injection|etc.",
+  "doseAmount": numeric_value,
+  "doseUnit": "mg|g|ml|mL|tsp|tbsp|drops|puffs|units|tablets|capsules|ND|application",
+  "route": "Oral|Via nasogastric tube|Via nasojejeunal tube|Via gastric tube|Sublingual|Subcutaneous|Intravenous|Transdermal",
   "isPRN": boolean,
   "scheduleType": "every_x_hours|times_per_day|specific_times",
-  "everyXHours": number,
-  "timesPerDay": number,
-  "specificTimes": ["HH:MM"],
+  "everyXHours": number_if_every_x_hours,
+  "timesPerDay": number_if_times_per_day,
+  "specificTimes": [{"id": "0", "time": "HH:MM"}]_if_specific_times,
+  "prnScheduleHours": number_if_isPRN_true,
   "notes": "special instructions or notes",
   "confidence": 0.0-1.0
 }]
+
+CRITICAL: For PRN medications, always include "prnScheduleHours" (typically 4-8 hours). For scheduled medications, do NOT include "prnScheduleHours".
 
 Do not include any explanations, markdown formatting, or text outside the JSON array.`;
 
@@ -237,15 +255,8 @@ Do not include any explanations, markdown formatting, or text outside the JSON a
     // Validate and clean medications
     const validatedMedications = medications.map((med: any, index: number) => {
       // Validate required fields
-      if (!med.name || !med.doseAmount || !med.doseUnit || !med.scheduleType) {
+      if (!med.name || med.doseAmount === undefined || !med.doseUnit) {
         console.warn(`⚠️ Invalid medication at index ${index}, skipping:`, med);
-        return null;
-      }
-
-      // Validate scheduleType
-      const validScheduleTypes = ["every_x_hours", "times_per_day", "specific_times"];
-      if (!validScheduleTypes.includes(med.scheduleType)) {
-        console.warn(`⚠️ Invalid scheduleType "${med.scheduleType}" at index ${index}, skipping`);
         return null;
       }
 
@@ -255,20 +266,58 @@ Do not include any explanations, markdown formatting, or text outside the JSON a
       med.notes = med.notes || "";
       med.route = med.route || "Oral";
 
-      // For topical medications, ensure proper units
-      if (med.route === "Topical" && !["application", "ND"].includes(med.doseUnit)) {
+      // Ensure doseAmount is numeric
+      if (typeof med.doseAmount === 'string') {
+        med.doseAmount = parseFloat(med.doseAmount) || 1;
+      }
+
+      // For transdermal medications, ensure proper units
+      if (med.route === "Transdermal" && !["application", "ND"].includes(med.doseUnit)) {
         med.doseUnit = "application";
       }
 
-      // Validate schedule-specific fields
-      if (med.scheduleType === "times_per_day" && (!med.timesPerDay || med.timesPerDay < 1)) {
-        med.timesPerDay = 2; // Default to twice daily
-      }
-      if (med.scheduleType === "every_x_hours" && (!med.everyXHours || med.everyXHours < 1)) {
-        med.everyXHours = 8; // Default to every 8 hours
-      }
-      if (med.scheduleType === "specific_times" && (!med.specificTimes || !Array.isArray(med.specificTimes) || med.specificTimes.length === 0)) {
-        med.specificTimes = ["08:00"]; // Default morning dose
+      // Handle PRN vs scheduled medication logic
+      if (med.isPRN) {
+        // PRN medication - ensure prnScheduleHours is set
+        if (!med.prnScheduleHours || med.prnScheduleHours < 1 || med.prnScheduleHours > 24) {
+          med.prnScheduleHours = 6; // Default to 6 hours for PRN
+        }
+        // Clear scheduled medication fields for PRN
+        delete med.scheduleType;
+        delete med.everyXHours;
+        delete med.timesPerDay;
+        delete med.specificTimes;
+      } else {
+        // Scheduled medication - validate scheduleType
+        const validScheduleTypes = ["every_x_hours", "times_per_day", "specific_times"];
+        if (!med.scheduleType || !validScheduleTypes.includes(med.scheduleType)) {
+          med.scheduleType = "every_x_hours"; // Default schedule type
+          med.everyXHours = 8; // Default to every 8 hours
+        }
+
+        // Validate schedule-specific fields
+        if (med.scheduleType === "times_per_day" && (!med.timesPerDay || med.timesPerDay < 1)) {
+          med.timesPerDay = 2; // Default to twice daily
+        }
+        if (med.scheduleType === "every_x_hours" && (!med.everyXHours || med.everyXHours < 1)) {
+          med.everyXHours = 8; // Default to every 8 hours
+        }
+        if (med.scheduleType === "specific_times" && (!med.specificTimes || !Array.isArray(med.specificTimes) || med.specificTimes.length === 0)) {
+          med.specificTimes = [{ id: "0", time: "08:00" }]; // Default morning dose
+        }
+
+        // Ensure specificTimes has proper structure for times_per_day and specific_times
+        if (med.scheduleType === "specific_times" && med.specificTimes) {
+          med.specificTimes = med.specificTimes.map((timeEntry: any, idx: number) => {
+            if (typeof timeEntry === 'string') {
+              return { id: idx.toString(), time: timeEntry };
+            }
+            return timeEntry.id ? timeEntry : { id: idx.toString(), time: timeEntry.time || "08:00" };
+          });
+        }
+
+        // Clear PRN fields for scheduled medications
+        delete med.prnScheduleHours;
       }
 
       return med;
